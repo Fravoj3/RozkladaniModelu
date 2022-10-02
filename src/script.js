@@ -48,9 +48,21 @@ scene.add(camera)
 //Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
-controls.enablePan = false
-controls.minPolarAngle = 0.2
-controls.maxPolarAngle = Math.PI/1.2
+controls.enablePan = true
+//controls.minPolarAngle = 0.2
+//controls.maxPolarAngle = Math.PI/1.2
+
+
+const color = 0xFFFFFF;
+const intensity = 1;
+const light = new THREE.DirectionalLight(color, intensity);
+light.position.set(-30, 2, 4);
+scene.add(light);
+const light2 = new THREE.DirectionalLight({color: 0xFFFFFF, intensity: 1});
+light2.position.set(30,1,-5);
+scene.add(light2);
+const ambLight = new THREE.AmbientLight( 0x404040 ); // soft white light
+scene.add( ambLight );
 
 // Renderer
 const renderer = new THREE.WebGLRenderer({
@@ -98,3 +110,55 @@ tick()
 
 renderer.setSize(sizes.width, sizes.height)
 renderer.render(scene, camera)
+
+let model;
+let vertices;
+let faces;
+document.getElementById('inputfile').addEventListener('change', function () {
+    var fr = new FileReader();
+    fr.onload = function () {
+    model = new THREE.Geometry();
+    vertices = [];
+    faces = [];
+        document.getElementById('output').textContent = fr.result;
+        const lines = String(fr.result).split("\n");
+        for(let i = 0; i < lines.length; i++){
+            const pof = lines[i].split(' ')
+            
+            if(pof[0]=='v'){
+                vertices.push({x:pof[1], y:pof[2], z:pof[3]})
+                model.vertices.push(new THREE.Vector3(pof[1], pof[2], pof[3]));
+            }
+            if(pof[0]=='f'){
+                const verts = []
+                for(let k = 1; k < pof.length; k++){
+                    const vert = pof[k].split('/');
+                    verts.push(vert[0])
+                    
+                }
+                faces.push(verts)
+                if(verts.length == 3){
+                model.faces.push(new THREE.Face3(verts[0]-1, verts[1]-1, verts[2]-1));
+                }
+                if(verts.length == 4){
+                model.faces.push(new THREE.Face3(verts[0]-1, verts[1]-1, verts[2]-1), new THREE.Face3(verts[0]-1, verts[2]-1, verts[3]-1));
+                }
+                
+            }
+        }
+        model.computeFaceNormals();
+        const modelMash = new THREE.Mesh(model, new THREE.MeshPhongMaterial({color: '#d9dadb', side: THREE.DoubleSide}));
+        for (let i = scene.children.length - 1; i >= 0; i--) {
+            if(scene.children[i].type === "Mesh"){
+                scene.remove(scene.children[i]);
+            }
+        }
+        scene.add(modelMash);
+    }
+    fr.addEventListener('error', (event) => {
+         document.getElementById('output').textContent = "Can not load file";
+    });
+    fr.readAsText(this.files[0]);
+    })
+
+

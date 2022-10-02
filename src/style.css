@@ -1,0 +1,18 @@
+body{
+    padding: none;
+    margin: 0px;
+}
+.webgl{
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+.model{
+position: absolute;
+top: 100px;
+left: 50px;
+width: 80%;
+height: 80%;
+background: rgb(176,176,176);
+background: linear-gradient(0deg, rgba(176,176,176,1) 0%, rgba(175,242,255,1) 100%);
+}

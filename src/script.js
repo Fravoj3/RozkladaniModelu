@@ -62,6 +62,8 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true
 });
 
+let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
+
 //Controls
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
@@ -118,7 +120,7 @@ document.addEventListener('mousemove', event => {
           }
           pointedObjects = [];
         }
-        intersects[0].object.material.color.set(0xff0000)
+        intersects[0].object.material.color.set("#dd7907")
         pointedObjects.push(intersects[0].object);
         //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
       }
@@ -205,13 +207,13 @@ renderer.domElement.addEventListener('mousedown', event => {
         teziste.z = teziste.z / teziste.vertCount
         let puvodniNormala = CursorPointing.object.geometry.faces[0].normal
 
-        
+
         //console.log(teziste)
         // Máme vektory u a v, které udávají rovinu a bod A v rovině
-        
 
 
-      }else{
+
+      } else {
         console.log("U polygonu nelze vytvořit normálový vektor")
       }
     }
@@ -234,6 +236,21 @@ $('input:checkbox').change(
       }
     }
   });
+
+document.getElementById('userImage').addEventListener('change', function (e) {
+
+  const userImage = e.target.files[0];
+  const userImageURL = URL.createObjectURL(userImage);
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("");
+  let texture = loader.load(userImageURL);
+
+  //CursorPointing.object.material.specularMap = texture
+  CursorPointing.object.material.map = texture
+  texture.needsUpdate = true
+  CursorPointing.object.material.needsUpdate = true
+  console.log(CursorPointing.object)
+});
 //gsap.to(cubeMesh.position, { duration: 1, delay: 5, x: 2})
 renderer.setSize(sizes.width, sizes.height);
 renderer.render(scene, camera);
@@ -247,6 +264,7 @@ let verticesVectors = []
 let UVCoordinates = []
 let faces;
 let faceNormal = []
+
 let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
 document.getElementById("inputfile").addEventListener("change", function () {
   if (!isNaN($('#scale').val()) && Number($('#scale').val()) > 0) {
@@ -260,6 +278,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
     model = new THREE.Geometry();
     obrys.nove = 0;
     vertices = [];
+    UVCoordinates = []
     verticesVectors = [];
     faces = [];
     modelsInScene = [];
@@ -316,21 +335,21 @@ document.getElementById("inputfile").addEventListener("change", function () {
       if (pof[0] == "vn") {
         faceNormal.push({ x: pof[1], y: pof[2], z: pof[3] });
       }
-      
-      if(pof[0] == "vt"){
-        UVCoordinates.push({u: pof[1], v: pof[2]})
+
+      if (pof[0] == "vt") {
+        UVCoordinates.push({ u: pof[1], v: pof[2] })
       }
       // Pridani polygonu
       if (pof[0] == "f") {
         model.vertices = verticesVectors;
-
+        model.faceVertexUvs[0] = [];
         const UVs = [];
         const verts = [];
         for (let k = 1; k < pof.length; k++) {
           const vert = pof[k].split("/");
           verts.push(vert[0]);
-          if(vert.length > 1 && vert[1] !== ""){
-            UVs.push(new THREE.Vector2(UVCoordinates[vert[1]-1].u, UVCoordinates[vert[1]-1].v))
+          if (vert.length > 1 && vert[1] !== "" && UVCoordinates.length > 0) {
+            UVs.push(new THREE.Vector2(UVCoordinates[vert[1] - 1].u, UVCoordinates[vert[1] - 1].v))
           }
         }
         faces.push(verts);
@@ -339,30 +358,44 @@ document.getElementById("inputfile").addEventListener("change", function () {
           model.faces.push(
             new THREE.Face3(verts[0] - 1, verts[1] - 1, verts[2] - 1)
           );
+          if (UVCoordinates.length > 0) {
+            model.faceVertexUvs[0].push([
+              UVs[0],
+              UVs[1],
+              UVs[2]
+            ]);
+          }
         } else {
           if (verts.length == 4) {
             model.faces.push(
               new THREE.Face3(verts[0] - 1, verts[1] - 1, verts[2] - 1),
               new THREE.Face3(verts[0] - 1, verts[2] - 1, verts[3] - 1)
             );
+            if (UVCoordinates.length > 0) {
+              model.faceVertexUvs[0].push([UVs[0], UVs[1], UVs[2]]);
+              model.faceVertexUvs[0].push([UVs[2], UVs[1], UVs[3]]);
+            }
           }
           if (verts.length > 4) {
             for (let l = 2; l < verts.length; l++) {
               model.faces.push(
                 new THREE.Face3(verts[0] - 1, verts[l - 1] - 1, verts[l] - 1)
               );
+              if (UVCoordinates.length > 0) {
+                model.faceVertexUvs[0].push([UVs[0], UVs[l - 1], UVs[l]]);
+              }
             }
           }
         }
         // Přidání polygonů
         model.computeFaceNormals();
-        if(UVs.length != 0){
-          model.faceVertexUvs = UVs
+        model.uvsNeedUpdate = true;
+        if (UVs.length != 0) {
+          console.log("Custom UVs")
+          console.log(model)
         }
         const modelMash = new THREE.Mesh(
-          model,
-          new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
-        );
+          model, new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));
         modelMash.userData.name = faces.length - 1;
         scene.add(modelMash);
         modelsInScene.push(modelMash);
@@ -502,7 +535,6 @@ document.getElementById("inputfile").addEventListener("change", function () {
     // Load info
     jQuery('.info').empty()
     jQuery('.info').append("Vertices: " + vertices.length + "<br>Polygons: " + faces.length + "<br>Sizes:<br>" + ((obrys.xMin * -1) + obrys.xMax).toFixed(2) + " x " + ((obrys.yMin * -1) + obrys.yMax).toFixed(2) + " x " + ((obrys.zMin * -1) + obrys.zMax).toFixed(2));
-    console.log(obrys.zMin + " , " + obrys.zMax)
   };
   fr.addEventListener("error", event => {
     document.getElementById("output").textContent = "Can not load file";

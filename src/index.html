@@ -1,16 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>04 - Webpack</title>
 </head>
+
 <body>
-<input type="file" name="inputfile" id="inputfile"/>
-        <pre id="output"></pre>
-        <script type="text/javascript">
-            
-        </script>
-        <div class="model"><canvas class="webgl"></canvas></div>  
+    <div class="hlavicka">
+        
+    </div>
+    <div class="import">
+        <p> <br>
+            Local unit: 1 = 1cm<br>set scale of model <input type="number" id="scale" value="1">
+        </p>
+        <div class="lds-ellipsis">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <input type="file" name="inputfile" id="inputfile" tex class="file" accept=".obj" />
+        <p class="info"></p>
+
+
+
+        <div id="output"></div>
+    </div>
+    <div class="controlPanel">
+        <input type="checkbox"value="showGrid" checked>
+        <label> Show grid</label><br>
+        <input type="checkbox"value="showAxisHelper" checked>
+        <label> Show axis helper</label>
+    </div>
+    <div class="model"> 
+        <canvas class="webgl"></canvas>
+    </div>
+    <canvas id="">
+
+    </canvas>
 </body>
+
 </html>

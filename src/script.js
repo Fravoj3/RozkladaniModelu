@@ -120,7 +120,7 @@ document.addEventListener('mousemove', event => {
           }
           pointedObjects = [];
         }
-        intersects[0].object.material.color.set("#dd7907")
+        intersects[0].object.material.color.set("#d3791a")
         pointedObjects.push(intersects[0].object);
         //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
       }
@@ -191,7 +191,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         }
       }
       if (n.nastaven) {
-        console.log("Bod a")
+        /*console.log("Bod a")
         console.log(a)
         console.log("vektor u")
         console.log(u)
@@ -200,7 +200,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         console.log("normála n")
         console.log(n)
         console.log("Soubor vrcholů")
-        console.log(vertsToPlannarize)
+        console.log(vertsToPlannarize)*/
 
         teziste.x = teziste.x / teziste.vertCount
         teziste.y = teziste.y / teziste.vertCount
@@ -210,9 +210,33 @@ renderer.domElement.addEventListener('mousedown', event => {
 
         //console.log(teziste)
         // Máme vektory u a v, které udávají rovinu a bod A v rovině
+        let bodNaRovine = {x:0, y:0, z:0}
+        for(let l = 0; l < vertsToPlannarize.length; l++){
+          try {
+            const equation = nerdamer.solveEquations([
+            u.x+"*t+s*"+v.x+"+"+a.x+"="+vertsToPlannarize[l].x+"+"+n.x+"*k",
+            u.y+"*t+s*"+v.y+"+"+a.y+"="+vertsToPlannarize[l].y+"+"+n.y+"*k",
+            u.z+"*t+s*"+v.z+"+"+a.z+"="+vertsToPlannarize[l].z+"+"+n.z+"*k"]);
+            bodNaRovine.x = vertsToPlannarize[l].x + n.x*equation[0][1];
+            bodNaRovine.y = vertsToPlannarize[l].y + n.y*equation[0][1];
+            bodNaRovine.z = vertsToPlannarize[l].z + n.z*equation[0][1];
+            // vektor u - x souřadnice y - y souřadnice y
+            equation = nerdamer.solveEquations(["("+u.x+"^2)*k+("+u.y+"^2)*k+("+u.z+"^2)*k=1"])
+            let localX = {x:u.x*equation[0][1], y:u.xy*equation[0][1], z:u.z*equation[0][1]} // Velikost by měla být 1
+            equation = nerdamer.solveEquations([
+              u.x+"*x+"+u.y+"*y+"+u.z+"*z=0",
+              "x^2+y^2+z^2=1", 
+              "x="+u.x+"*s+k*"+v.x, "y="+u.y+"*s+k*"+v.y, "z="+u.z+"*s+k*"+v.z
+          ])
+            let localY = {x:equation[4][1], y:equation[3][1], z:equation[2][1]}
+            
+            console.log(equation)
+          }
+          catch (err) {
+            console.log("Vektory nejsou rovinne")
+          }
 
-
-
+        }
       } else {
         console.log("U polygonu nelze vytvořit normálový vektor")
       }
@@ -247,7 +271,7 @@ document.getElementById('userImage').addEventListener('change', function (e) {
 
   //CursorPointing.object.material.specularMap = texture
   CursorPointing.object.material.map = texture
-  texture.needsUpdate = true
+  //texture.needsUpdate = true
   CursorPointing.object.material.needsUpdate = true
   console.log(CursorPointing.object)
 });

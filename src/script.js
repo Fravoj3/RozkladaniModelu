@@ -210,33 +210,45 @@ renderer.domElement.addEventListener('mousedown', event => {
 
         //console.log(teziste)
         // Máme vektory u a v, které udávají rovinu a bod A v rovině
-        let bodNaRovine = {x:0, y:0, z:0}
-        for(let l = 0; l < vertsToPlannarize.length; l++){
-          try {
-            const equation = nerdamer.solveEquations([
-            u.x+"*t+s*"+v.x+"+"+a.x+"="+vertsToPlannarize[l].x+"+"+n.x+"*k",
-            u.y+"*t+s*"+v.y+"+"+a.y+"="+vertsToPlannarize[l].y+"+"+n.y+"*k",
-            u.z+"*t+s*"+v.z+"+"+a.z+"="+vertsToPlannarize[l].z+"+"+n.z+"*k"]);
-            bodNaRovine.x = vertsToPlannarize[l].x + n.x*equation[0][1];
-            bodNaRovine.y = vertsToPlannarize[l].y + n.y*equation[0][1];
-            bodNaRovine.z = vertsToPlannarize[l].z + n.z*equation[0][1];
-            // vektor u - x souřadnice y - y souřadnice y
-            equation = nerdamer.solveEquations(["("+u.x+"^2)*k+("+u.y+"^2)*k+("+u.z+"^2)*k=1"])
-            let localX = {x:u.x*equation[0][1], y:u.xy*equation[0][1], z:u.z*equation[0][1]} // Velikost by měla být 1
-            equation = nerdamer.solveEquations([
-              u.x+"*x+"+u.y+"*y+"+u.z+"*z=0",
-              "x^2+y^2+z^2=1", 
-              "x="+u.x+"*s+k*"+v.x, "y="+u.y+"*s+k*"+v.y, "z="+u.z+"*s+k*"+v.z
+        let bodNaRovine = { x: 0, y: 0, z: 0 }
+        let PlanePoints = []
+        // vektor u - x souřadnice y - y souřadnice y
+        try {
+          let k = 1
+          let equation = nerdamer.solveEquations(["a*a+b*b+c*c=1","a=k*"+u.x, "b=k*"+u.y, "c=k*"+u.z])
+          k = equation[3][1]
+          let localVX = { x: u.x * k, y: u.y * k, z: u.z * k} // Velikost by měla být 1
+          equation = nerdamer.solveEquations([
+            u.x + "*x+" + u.y + "*y+" + u.z + "*z=0",
+            "x*x+y*y+z*z=1",
+            "x=" + u.x + "*s+k*" + v.x, "y=" + u.y + "*s+k*" + v.y, "z=" + u.z + "*s+k*" + v.z
           ])
-            let localY = {x:equation[4][1], y:equation[3][1], z:equation[2][1]}
-            
-            console.log(equation)
-          }
-          catch (err) {
-            console.log("Vektory nejsou rovinne")
-          }
+          console.log(equation)
+          let localVY = { x: equation[4][1], y: equation[3][1], z: equation[2][1] }
+          console.log(localVX)
+          console.log(localVY)
+          for (let l = 0; l < vertsToPlannarize.length; l++) {
 
+            equation = nerdamer.solveEquations([
+              u.x + "*t+s*" + v.x + "+" + a.x + "=" + vertsToPlannarize[l].x + "+" + n.x + "*k",
+              u.y + "*t+s*" + v.y + "+" + a.y + "=" + vertsToPlannarize[l].y + "+" + n.y + "*k",
+              u.z + "*t+s*" + v.z + "+" + a.z + "=" + vertsToPlannarize[l].z + "+" + n.z + "*k"]);
+            bodNaRovine.x = vertsToPlannarize[l].x + n.x * equation[0][1];
+            bodNaRovine.y = vertsToPlannarize[l].y + n.y * equation[0][1];
+            bodNaRovine.z = vertsToPlannarize[l].z + n.z * equation[0][1];
+
+            equation = nerdamer.solveEquations([
+              localVX.x + "*t+s*" + localVY.x + "+" + a.x + "=" + bodNaRovine.x,
+              localVX.y + "*t+s*" + localVY.y + "+" + a.y + "=" + bodNaRovine.y
+              //localVX.z + "*t+s*" + localVY.z + "+" + a.z + "=" + vertsToPlannarize[l].z + "+" + n.z + "*k"
+            ]);
+            PlanePoints.push({ x: equation[1][1], y: equation[0][1] })
+          }
         }
+        catch (err) {
+          console.log("Vektory nejsou rovinne")
+        }
+        console.log(PlanePoints)
       } else {
         console.log("U polygonu nelze vytvořit normálový vektor")
       }
@@ -416,7 +428,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
         model.uvsNeedUpdate = true;
         if (UVs.length != 0) {
           console.log("Custom UVs")
-          console.log(model)
+          //console.log(model)
         }
         const modelMash = new THREE.Mesh(
           model, new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));

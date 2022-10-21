@@ -205,19 +205,25 @@ renderer.domElement.addEventListener('mousedown', event => {
         teziste.x = teziste.x / teziste.vertCount
         teziste.y = teziste.y / teziste.vertCount
         teziste.z = teziste.z / teziste.vertCount
-        let puvodniNormala = CursorPointing.object.geometry.faces[0].normal
-
-
-        //console.log(teziste)
+        let normala
+        if (faceNormal.length == faces.length) {// Máme importovanou normálu polygonu
+          normala = faceNormal[CursorPointing.object.userData.name] // Použij importovanou normálu
+        }else{
+          normala = CursorPointing.object.geometry.faces[0].normal // Použij normálu prvního TRI tvořícího tento polygon
+        }
+        console.log(normala)
+        
         // Máme vektory u a v, které udávají rovinu a bod A v rovině
         let bodNaRovine = { x: 0, y: 0, z: 0 }
         let PlanePoints = []
         // vektor u - x souřadnice y - y souřadnice y
         try {
+
           let k = 1
-          let equation = nerdamer.solveEquations(["a*a+b*b+c*c=1","a=k*"+u.x, "b=k*"+u.y, "c=k*"+u.z])
+          let equation = nerdamer.solveEquations(["a*a+b*b+c*c=1", "a=k*" + n.x, "b=k*" + n.y, "c=k*" + n.z])
           k = equation[3][1]
-          let localVX = { x: u.x * k, y: u.y * k, z: u.z * k} // Velikost by měla být 1
+          let localVX = { x: n.x * k, y: n.y * k, z: n.z * k } // Velikost by měla být 1
+          console.log(localVX)
           equation = nerdamer.solveEquations([
             u.x + "*x+" + u.y + "*y+" + u.z + "*z=0",
             "x*x+y*y+z*z=1",
@@ -437,125 +443,10 @@ document.getElementById("inputfile").addEventListener("change", function () {
         modelsInScene.push(modelMash);
         model = new THREE.Geometry();
 
-        /*
-        // Planarity test
-        const pocatek = { x: vertices[verts[0] - 1].x, y: vertices[verts[0] - 1].y, z: vertices[verts[0] - 1].z };
-        let prvniVektor = { x: 0, y: 0, z: 0, p: 0 }
-        let druhyVektor = { x: 0, y: 0, z: 0, p: 0 }
-        let merenyVektor = { x: 0, y: 0, z: 0 }
-        let neudelane = false;
 
-        for (let l = 0; l < verts.length; l++) {
-          // Test shodných vrcholů s počátkem
-          if (Number(vertices[verts[l] - 1].x) == Number(pocatek.x) && Number(vertices[verts[l] - 1].y) == Number(pocatek.y) && Number(vertices[verts[l] - 1].z) == Number(pocatek.z)) {
-            chyby.push("Shodné vrcholy: " + verts[l] + " a " + verts[0]);
-            continue;
-          }
-          // Prvni vektor souradnicove soustavy
-          if (prvniVektor.p == 0) {
-            prvniVektor.x = Number(vertices[verts[l] - 1].x) - Number(pocatek.x);
-            prvniVektor.y = Number(vertices[verts[l] - 1].y) - Number(pocatek.y);
-            prvniVektor.z = Number(vertices[verts[l] - 1].z) - Number(pocatek.z);
-            prvniVektor.p = 1;
-            continue;
-          }
-          // Druhy vektor souradnicove soustavy
-          if (druhyVektor.p == 0) {
-            druhyVektor.x = Number(vertices[verts[l] - 1].x) - Number(pocatek.x);
-            druhyVektor.y = Number(vertices[verts[l] - 1].y) - Number(pocatek.y);
-            druhyVektor.z = Number(vertices[verts[l] - 1].z) - Number(pocatek.z);
-
-            // Test, zdali jsou vektory linearne zavisle
-            try {
-              const rov = nerdamer.solveEquations(['94.96 = k*10.8 + l*2', '164 = k*20', '24.2 = k + 5*l']);
-            }
-            catch (err) {
-              console.log("Vektory nejsou rovinne")
-              druhyVektor.p = 1;
-              continue;
-            }
-            neudelane = true;
-            continue;
-          }
-          // Test dalsich vektoru
-          if (prvniVektor.p == 1 && druhyVektor.p == 1) {
-            merenyVektor.x = Number(vertices[verts[l] - 1].x) - Number(pocatek.x);
-            merenyVektor.y = Number(vertices[verts[l] - 1].y) - Number(pocatek.y);
-            merenyVektor.z = Number(vertices[verts[l] - 1].z) - Number(pocatek.z);
-            // Reseni proti deleni nulou
-            let a = 0;
-            let b = 0;
-            if (prvniVektor.x != 0) {
-              //a = merenyVektor.x -  
-            }
-          }
-          if (l = verts.length - 1 && neudelane) {
-            if (druhyVektor.p == 0) {
-              chyby.push("Model obsahuje polygon s nulovým obsahem");
-            } else {
-              neudelane = false;
-              l = 0;
-            }
-          }
-        }*/
-
-        /*let u = {
-          x:
-            vertices[verts[1] - 1].x -
-            vertices[verts[0] - 1].x,
-          y:
-            vertices[verts[1] - 1].y -
-            vertices[verts[0] - 1].y,
-          z:
-            vertices[verts[1] - 1].z -
-            vertices[verts[0] - 1].z
-          };
-          console.log("Puvodni U na zacatku")
-          console.log(u)
-          let v = { x: 0, y: 0, z: 0, u: 0 };
-          let w = { x: 0, y: 0, z: 0};
-          for (let l = 1; l < verts.length; l++) {
-              w.x = Number(vertices[verts[l] - 1].x) - Number(parseInt(vertices[verts[0] - 1].x));
-              w.y = Number(vertices[verts[l] - 1].y) - Number(parseInt(vertices[verts[0] - 1].y));
-              w.z = Number(vertices[verts[l] - 1].z) - Number(parseInt(vertices[verts[0] - 1].z));
-            if (v.u == 0) {
-                const k = w.x / u.x;
-                console.log("k: "+ k)
-                console.log(w.x / u.x)
-                console.log(w.x)
-                console.log(u.x)
-                if (Math.abs(w.y - k * u.y) < 0.001 && Math.abs(w.z - k * u.z) < 0.001) {
-                    // Vektory jsou linearne zavisle
-                    console.log("jsou zavisle")
-                } else {
-                    // pokud nejsou, vytvor druhy vektor, se kterym by malo byt mozne vytvorit linearni kombinace
-                    v.x = Number(vertices[verts[l] - 1].x) - Number(vertices[verts[0] - 1].x);
-                    v.y = Number(vertices[verts[l] - 1].y) - Number(vertices[verts[0] - 1].y);
-                    v.z = Number(vertices[verts[l] - 1].z) - Number(vertices[verts[0] - 1].z);
-                    v.u = 1;
-                    console.log("Vytvarim V")
-                    console.log(v)
-                    console.log("Puvodni U")
-                    console.log(u)
-                }
-            }
-            else {
-                // Lze porovnávat pomocí lineární kombinace vektorů u a v
-                const m = (w.y * u.x - w.x * u.y) / (v.y * u.x - v.x * u.y);
-                const k = (w.z - m * v.z) / u.z;
-                // Test rovinnosti polygonu
-                console.log(u)
-                console.log(v)
-                console.log(w)
-                if (Math.abs(w.x - (k * u.x + m * v.x)) > 0.001 && Math.abs(w.y - (k * u.y + m * v.y)) > 0.001 && Math.abs(w.z - (k * u.z + m * v.z)) > 0.001) {
-                    console.log("Polygon je nerovinný")
-                }
-            }
-        }*/
-        //}
       }
     }
-    // P�id�n� jednotkov� krychle
+    // Přidání jednotkové krychle
 
     /*const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
     const cubeMaterial = new THREE.MeshPhongMaterial({

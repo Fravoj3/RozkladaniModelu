@@ -58,7 +58,15 @@ p input{
     right: 50px;
     color: black;
 }
-
+button{
+  margin: 20px;
+    border: none;
+    padding: 15px 30px;
+    background-color: #82959b;
+    border-radius: 5px;
+    color: #fff;
+    cursor: pointer;
+}
 input[type=file]::file-selector-button {
     margin: 20px;
     border: none;

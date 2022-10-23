@@ -3,7 +3,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import "./style.css";
 import nerdamer from "nerdamer";
 import gsap from "gsap";
-import CameraControls from 'camera-controls/camera-controls.js';
+import * as mathjs from 'mathjs'
+import CameraControls from 'camera-controls';
+import matrix from 'matrix-js';
 CameraControls.install({ THREE: THREE });
 var $ = require('jquery');
 window.jQuery = $;
@@ -23,6 +25,7 @@ const sizes = {
 // Scene
 const scene = new THREE.Scene();
 let modelsInScene = [];
+let interakceSModelem = true;
 
 //axis helper + geid helper
 const axisHelper = new THREE.AxesHelper(2);
@@ -97,6 +100,7 @@ let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
 var raycaster = new THREE.Raycaster();
 let neinteraguje = true;
 document.addEventListener('mousemove', event => {
+  if(interakceSModelem){
   // Sedí horizontálně
   neinteraguje = true;
   if (event.clientX > parentSize.left && event.clientX < parentSize.left + parentSize.width) {
@@ -133,7 +137,7 @@ document.addEventListener('mousemove', event => {
     }
     pointedObjects = [];
   }
-});
+}});
 renderer.domElement.addEventListener('mousedown', event => {
   if (event.which == 1) { // Levé tlačítko
     if (CursorPointing.isPointing) {
@@ -202,22 +206,135 @@ renderer.domElement.addEventListener('mousedown', event => {
         console.log("Soubor vrcholů")
         console.log(vertsToPlannarize)*/
 
+        // ----- Těžišzě
         teziste.x = teziste.x / teziste.vertCount
         teziste.y = teziste.y / teziste.vertCount
         teziste.z = teziste.z / teziste.vertCount
+        // ----- Normála
         let normala
         if (faceNormal.length == faces.length) {// Máme importovanou normálu polygonu
           normala = faceNormal[CursorPointing.object.userData.name] // Použij importovanou normálu
-        }else{
+        } else {
           normala = CursorPointing.object.geometry.faces[0].normal // Použij normálu prvního TRI tvořícího tento polygon
         }
+        // ----- Vyhledání vzájemně kolmých vektorů
+        let rovX
+        let rovY
+        if (normala.x == 0 && normala.y == 0) { // Budeme prohazovat z souřadnici
+          rovX = { x: Number(normala.z) * (-1), y: 0, z: Number(normala.x) }
+          rovY = { x: 0, y: Number(normala.z) * (-1), z: Number(normala.y) }
+        } else {
+          if (normala.y == 0 && normala.z == 0) { // Budeme prohazovat x souřadnici
+            rovX = { x: Number(normala.y), y: Number(normala.x) * (-1), z: 0 }
+            rovY = { x: Number(normala.z), y: 0, z: Number(normala.x) * (-1) }
+          } else { // Budeme prohazovat y souřadnici
+            rovX = { x: Number(normala.y) * (-1), y: Number(normala.x), z: 0 }
+            rovY = { x: 0, y: Number(normala.z), z: Number(normala.y) * (-1) }
+          }
+        }
+        // Změna vel. vektoru na jednotkový
+        const k = Math.sqrt(1 / (Math.pow(rovX.x, 2) + Math.pow(rovX.y, 2) + Math.pow(rovX.z, 2)))
+        const l = Math.sqrt(1 / (Math.pow(rovY.x, 2) + Math.pow(rovY.y, 2) + Math.pow(rovY.z, 2)))
+        //rovX = { x: rovX.x * k, y: rovX.y * k, z: rovX.z * k, len: Math.sqrt(Math.pow(rovX.x * k, 2) + Math.pow(rovX.y * k, 2) + Math.pow(rovX.z * k, 2)) }
+        //rovY = { x: rovY.x * l, y: rovY.y * l, z: rovY.z * l, len: Math.sqrt(Math.pow(rovY.x * l, 2) + Math.pow(rovY.y * l, 2) + Math.pow(rovY.z * l, 2)) }
+
+        const osX = { x: 1, y: 0, z: 0 }
+        const osY = { x: 0, y: 1, z: 0 }
+        const osZ = { x: 0, y: 0, z: 1 }
+        console.log(Math.sqrt(Math.pow(normala.x, 2) + Math.pow(normala.y, 2) + Math.pow(normala.z, 2)))
+        console.log(Math.sqrt(Math.pow(rovX.x, 2) + Math.pow(rovX.y, 2) + Math.pow(rovX.z, 2)))
+        console.log(Math.sqrt(Math.pow(rovY.x, 2) + Math.pow(rovY.y, 2) + Math.pow(rovY.z, 2)))
+        // V = R x U
+
+        let quaternion = new THREE.Quaternion();
+        let druheQuaternion = new THREE.Quaternion();
+        const VX = new THREE.Vector3(rovX.x, rovX.y, rovX.z).normalize()
+        const VY = new THREE.Vector3(normala.x, normala.y, normala.z).normalize()
+
+        const VSX = new THREE.Vector3(1, 0, 0)
+        const VSY = new THREE.Vector3(0, 1, 0)
+        quaternion.setFromUnitVectors(VY, VSY);
+        VX.applyQuaternion(quaternion)
+        //        CursorPointing.object.applyQuaternion( quaternion );  
+        druheQuaternion.setFromUnitVectors(VX, VSX);
+        //        CursorPointing.object.applyQuaternion( druheQuaternion );
+
+        let PlanePoints = [[0, 0]]
+        let nepresnost = 0
+        const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+        let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+        let predchoziB = { x: 0, y: 0 }
+        const VBodu = new THREE.Vector3()
+        for (let l = 1; l < vertsToPlannarize.length; l++) {
+          VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
+          VBodu.applyQuaternion(quaternion)
+          VBodu.applyQuaternion(druheQuaternion)
+          PlanePoints.push([VBodu.x, VBodu.z])
+          nepresnost += Math.abs(Math.sqrt(Math.pow(vertsToPlannarize[l].x - predchoziA.x, 2) + Math.pow(vertsToPlannarize[l].y - predchoziA.y, 2) + Math.pow(vertsToPlannarize[l].z - predchoziA.z, 2)) - Math.sqrt(Math.pow(VBodu.x - predchoziB.x, 2) + Math.pow(VBodu.z - predchoziB.y, 2)))
+          predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
+          predchoziB = { x: VBodu.x, y: VBodu.z }
+        }
+
+        // Snaha řešení přes reverzní matice
+        /*let MV = matrix([
+          [osX.x, osY.x, osZ.x, 0], // Matrix s vektory odpovídající souřadnicovým osám
+          [osX.y, osY.y, osZ.y, 0],
+          [osX.z, osY.z, osZ.z, 0],
+          [1, 1, 1, 1]])
+
+        let MU = matrix([
+          [rovX.x, normala.x, rovY.x, 0], // Matrix s vektory z roviny
+          [rovX.y, normala.y, rovY.y, 0],
+          [rovX.z, normala.z, rovY.z, 0],
+          [1, 1, 1, 1]])
+
+          let MUInverse = mathjs.inv([
+            [rovX.x, normala.x, rovY.x, 0], // Matrix s vektory z roviny
+            [rovX.y, normala.y, rovY.y, 0],
+            [rovX.z, normala.z, rovY.z, 0],
+            [1, 1, 1, 1]])
+
+          console.log([
+            [rovX.x, normala.x, rovY.x, 0], // Matrix s vektory z roviny
+            [rovX.y, normala.y, rovY.y, 0],
+            [rovX.z, normala.z, rovY.z, 0],
+            [1, 1, 1, 1]])
+        let MR = matrix(MV.prod(matrix(MU.inv())))
+        console.log(MU.prod(matrix(MUInverse)))
+        console.log("R:")
+        console.log(MV.prod(matrix(MU.inv())))
+        console.log("Bod:")
+        let pokus = MR.prod(matrix([[1], [0], [0], [1]]))
+        console.log(pokus)
+        console.log("Bod délka:")
+        console.log(Math.sqrt(Math.pow(pokus[0][0], 2) + Math.pow(pokus[1][0], 2) + Math.pow(pokus[2][0], 2)))*/
+
+        // Snaha dostat se k výsledku pomocí lineárních rovnic z matic
+        /*let equation = nerdamer.solveEquations([
+          osX.x+"*k=cos(b)*cos(c)*"+rovX.x+"+sin(a)*sin(b)*cos(c)*"+rovX.y+"-cos(a)*sin(c)*"+rovX.y+"+cos(a)*sin(b)*cos(c)*"+rovX.z+"+sin(a)*sin(c)*"+rovX.z,
+          osX.y+"*k=cos(b)*cos(c)*"+rovX.x+"+sin(a)*sin(b)*sin(c)*"+rovX.y+"+cos(a)*cos(c)*"+rovX.y+"+cos(a)*sin(b)*sin(c)*"+rovX.z+"-sin(a)*cos(c)*"+rovX.z,
+          osX.z+"*k=-sin(b)*"+rovX.x+"+sin(a)*cos(b)*"+rovX.y+"+cos(a)*cos(b)*"+rovX.z,
+          
+          osY.x+"*l=cos(b)*cos(c)*"+rovY.x+"+sin(a)*sin(b)*cos(c)*"+rovY.y+"-cos(a)*sin(c)*"+rovY.y+"+cos(a)*sin(b)*cos(c)*"+rovY.z+"+sin(a)*sin(c)*"+rovY.z,
+          osY.y+"*l=cos(b)*cos(c)*"+rovY.x+"+sin(a)*sin(b)*sin(c)*"+rovY.y+"+cos(a)*cos(c)*"+rovY.y+"+cos(a)*sin(b)*sin(c)*"+rovY.z+"-sin(a)*cos(c)*"+rovY.z,
+          osY.z+"*l=-sin(b)*"+rovY.x+"+sin(a)*cos(b)*"+rovY.y+"+cos(a)*cos(b)*"+rovY.z,
+        
+          osZ.x+"*m=cos(b)*cos(c)*"+normala.x+"+sin(a)*sin(b)*cos(c)*"+normala.y+"-cos(a)*sin(c)*"+normala.y+"+cos(a)*sin(b)*cos(c)*"+normala.z+"+sin(a)*sin(c)*"+normala.z,
+          osZ.y+"*m=cos(b)*cos(c)*"+normala.x+"+sin(a)*sin(b)*sin(c)*"+normala.y+"+cos(a)*cos(c)*"+normala.y+"+cos(a)*sin(b)*sin(c)*"+normala.z+"-sin(a)*cos(c)*"+normala.z,
+          osZ.z+"*m=-sin(b)*"+normala.x+"+sin(a)*cos(b)*"+normala.y+"+cos(a)*cos(b)*"+normala.z
+
+        ])*/
+
+        /*console.log("normala")
         console.log(normala)
         
+        console.log(Math.sqrt(Math.pow(rovX.x,2)+Math.pow(rovX.y,2)+Math.pow(rovX.z,2)))
+        console.log(Math.sqrt(Math.pow(rovY.x,2)+Math.pow(rovY.y,2)+Math.pow(rovY.z,2)))*/
         // Máme vektory u a v, které udávají rovinu a bod A v rovině
         let bodNaRovine = { x: 0, y: 0, z: 0 }
-        let PlanePoints = []
+
         // vektor u - x souřadnice y - y souřadnice y
-        try {
+        /*try {
 
           let k = 1
           let equation = nerdamer.solveEquations(["a*a+b*b+c*c=1", "a=k*" + n.x, "b=k*" + n.y, "c=k*" + n.z])
@@ -253,8 +370,9 @@ renderer.domElement.addEventListener('mousedown', event => {
         }
         catch (err) {
           console.log("Vektory nejsou rovinne")
-        }
+        }*/
         console.log(PlanePoints)
+        console.log("Nepřesnost polygonu: " + nepresnost)
       } else {
         console.log("U polygonu nelze vytvořit normálový vektor")
       }
@@ -293,6 +411,108 @@ document.getElementById('userImage').addEventListener('change', function (e) {
   CursorPointing.object.material.needsUpdate = true
   console.log(CursorPointing.object)
 });
+let zobrazenaNerovinost = false;
+$('#zobrazNerovinnost').click(function () {
+  if (zobrazenaNerovinost == true) {
+    zobrazenaNerovinost = false
+    $('#zobrazNerovinnost').css("background-color","#82959b")
+    for (let i = 0; i < modelsInScene.length; i++) {
+      modelsInScene[i].material.color.set("#d9dadb");
+    }
+    interakceSModelem = true
+  } else {
+    zobrazenaNerovinost = true
+    interakceSModelem = false
+    $('#zobrazNerovinnost').css("background-color","#087ca7")
+    let nejNepresnost = 0;
+    for (let i = 0; i < modelsInScene.length; i++) {
+      let normala
+      const objekt = modelsInScene[i]
+      if (faceNormal.length == faces.length) {// Máme importovanou normálu polygonu
+        normala = faceNormal[modelsInScene[i].userData.name] // Použij importovanou normálu
+      } else {
+        normala = objekt.geometry.faces[0].normal // Použij normálu prvního TRI tvořícího tento polygon
+      }
+      let vertsToPlannarize = []
+      const currPoly = faces[objekt.userData.name]
+      for (const vert of currPoly) {
+        vertsToPlannarize.push({ x: Number(vertices[vert - 1].x), y: Number(vertices[vert - 1].y), z: Number(vertices[vert - 1].z) })
+      }
+      // ----- Vyhledání vzájemně kolmých vektorů
+      let rovX
+      if (normala.x == 0 && normala.y == 0) { // Budeme prohazovat z souřadnici
+        rovX = { x: Number(normala.z) * (-1), y: 0, z: Number(normala.x) }
+      } else {
+        if (normala.y == 0 && normala.z == 0) { // Budeme prohazovat x souřadnici
+          rovX = { x: Number(normala.y), y: Number(normala.x) * (-1), z: 0 }
+        } else { // Budeme prohazovat y souřadnici
+          rovX = { x: Number(normala.y) * (-1), y: Number(normala.x), z: 0 }
+        }
+      }
+      let quaternion = new THREE.Quaternion();
+      let druheQuaternion = new THREE.Quaternion();
+      const VX = new THREE.Vector3(rovX.x, rovX.y, rovX.z).normalize()
+      const VY = new THREE.Vector3(normala.x, normala.y, normala.z).normalize()
+
+      const VSX = new THREE.Vector3(1, 0, 0)
+      const VSY = new THREE.Vector3(0, 1, 0)
+      quaternion.setFromUnitVectors(VY, VSY);
+      VX.applyQuaternion(quaternion)
+      druheQuaternion.setFromUnitVectors(VX, VSX);
+
+      let nepresnost = 0
+      const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+      let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+      let predchoziB = { x: 0, y: 0 }
+      const VBodu = new THREE.Vector3()
+      for (let l = 1; l < vertsToPlannarize.length; l++) {
+        VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
+        VBodu.applyQuaternion(quaternion)
+        VBodu.applyQuaternion(druheQuaternion)
+        nepresnost += Math.abs(Math.sqrt(Math.pow(vertsToPlannarize[l].x - predchoziA.x, 2) + Math.pow(vertsToPlannarize[l].y - predchoziA.y, 2) + Math.pow(vertsToPlannarize[l].z - predchoziA.z, 2)) - Math.sqrt(Math.pow(VBodu.x - predchoziB.x, 2) + Math.pow(VBodu.z - predchoziB.y, 2)))
+        predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
+        predchoziB = { x: VBodu.x, y: VBodu.z }
+      }
+      if(nepresnost > nejNepresnost){
+        nejNepresnost = nepresnost
+      }
+      objekt.material.color.set(colorGradient(Math.min(nepresnost * 330, 100)/100, {red:78, green:169, blue:18}, {red:225, green:139, blue:7}, {red:218, green:42, blue:14}));
+    }
+    $('#planarityRes').empty()
+    $('#planarityRes').text("The largest inaccuracy within a single polygon: "+ (nejNepresnost*10).toFixed(2)+" mm.")
+  }
+
+})
+// https://gist.github.com/gskema/2f56dc2e087894ffc756c11e6de1b5ed
+function colorGradient(fadeFraction, rgbColor1, rgbColor2, rgbColor3) {
+  var color1 = rgbColor1;
+  var color2 = rgbColor2;
+  var fade = fadeFraction;
+
+  // Do we have 3 colors for the gradient? Need to adjust the params.
+  if (rgbColor3) {
+    fade = fade * 2;
+
+    // Find which interval to use and adjust the fade percentage
+    if (fade >= 1) {
+      fade -= 1;
+      color1 = rgbColor2;
+      color2 = rgbColor3;
+    }
+  }
+
+  var diffRed = color2.red - color1.red;
+  var diffGreen = color2.green - color1.green;
+  var diffBlue = color2.blue - color1.blue;
+
+  var gradient = {
+    red: parseInt(Math.floor(color1.red + (diffRed * fade)), 10),
+    green: parseInt(Math.floor(color1.green + (diffGreen * fade)), 10),
+    blue: parseInt(Math.floor(color1.blue + (diffBlue * fade)), 10),
+  };
+
+  return 'rgb(' + gradient.red + ',' + gradient.green + ',' + gradient.blue + ')';
+}
 //gsap.to(cubeMesh.position, { duration: 1, delay: 5, x: 2})
 renderer.setSize(sizes.width, sizes.height);
 renderer.render(scene, camera);

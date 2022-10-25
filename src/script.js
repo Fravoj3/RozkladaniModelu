@@ -28,7 +28,7 @@ let modelsInScene = [];
 let interakceSModelem = true;
 
 //axis helper + geid helper
-const axisHelper = new THREE.AxesHelper(2);
+const axisHelper = new THREE.AxesHelper(5);
 scene.add(axisHelper);
 const gridHelper = new THREE.GridHelper(100, 100, 0x0000ff, 0x808080);
 gridHelper.position.y = -0.01;
@@ -64,17 +64,19 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true
 });
+renderer.setSize(sizes.width, sizes.height);
+renderer.render(scene, camera)
 
 let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
 
-//Controls
+//--------------------   Auto-update
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
-(function anim() {
+(function update() {
   // snip
   const delta = clock.getDelta();
   const hasControlsUpdated = cameraControls.update(delta);
-  requestAnimationFrame(anim);
+  requestAnimationFrame(update);
   // you can skip this condition to render though
   renderer.render(scene, camera);
 
@@ -100,44 +102,45 @@ let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
 var raycaster = new THREE.Raycaster();
 let neinteraguje = true;
 document.addEventListener('mousemove', event => {
-  if(interakceSModelem){
-  // Sedí horizontálně
-  neinteraguje = true;
-  if (event.clientX > parentSize.left && event.clientX < parentSize.left + parentSize.width) {
-    if (event.clientY > parentSize.top && event.clientY < parentSize.top + parentSize.height) {
-      // Kurzor je v divu
-      var mouse = new THREE.Vector2();
-      mouse.x = ((event.clientX - parentSize.left) / parentSize.width) * 2 - 1;
-      mouse.y = - ((event.clientY - parentSize.top) / parentSize.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      var intersects = raycaster.intersectObjects(modelsInScene);
-      if (intersects.length > 0) {
-        CursorPointing.x = intersects[0].point.x
-        CursorPointing.y = intersects[0].point.y
-        CursorPointing.z = intersects[0].point.z
-        CursorPointing.isPointing = true;
-        CursorPointing.object = intersects[0].object;
-        neinteraguje = false;
-        if (!event.ctrlKey) {// Nechceme zanechávat stopu
-          for (let i = 0; i < pointedObjects.length; i++) {
-            pointedObjects[i].material.color.set("#d9dadb");
+  if (interakceSModelem) {
+    // Sedí horizontálně
+    neinteraguje = true;
+    if (event.clientX > parentSize.left && event.clientX < parentSize.left + parentSize.width) {
+      if (event.clientY > parentSize.top && event.clientY < parentSize.top + parentSize.height) {
+        // Kurzor je v divu
+        var mouse = new THREE.Vector2();
+        mouse.x = ((event.clientX - parentSize.left) / parentSize.width) * 2 - 1;
+        mouse.y = - ((event.clientY - parentSize.top) / parentSize.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        var intersects = raycaster.intersectObjects(modelsInScene);
+        if (intersects.length > 0) {
+          CursorPointing.x = intersects[0].point.x
+          CursorPointing.y = intersects[0].point.y
+          CursorPointing.z = intersects[0].point.z
+          CursorPointing.isPointing = true;
+          CursorPointing.object = intersects[0].object;
+          neinteraguje = false;
+          if (!event.ctrlKey) {// Nechceme zanechávat stopu
+            for (let i = 0; i < pointedObjects.length; i++) {
+              pointedObjects[i].material.color.set("#d9dadb");
+            }
+            pointedObjects = [];
           }
-          pointedObjects = [];
+          intersects[0].object.material.color.set("#d3791a")
+          pointedObjects.push(intersects[0].object);
+          //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
         }
-        intersects[0].object.material.color.set("#d3791a")
-        pointedObjects.push(intersects[0].object);
-        //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
       }
     }
-  }
-  if (neinteraguje) {
-    CursorPointing.isPointing = false;
-    for (let i = 0; i < pointedObjects.length; i++) {
-      pointedObjects[i].material.color.set("#d9dadb");
+    if (neinteraguje) {
+      CursorPointing.isPointing = false;
+      for (let i = 0; i < pointedObjects.length; i++) {
+        pointedObjects[i].material.color.set("#d9dadb");
+      }
+      pointedObjects = [];
     }
-    pointedObjects = [];
   }
-}});
+});
 renderer.domElement.addEventListener('mousedown', event => {
   if (event.which == 1) { // Levé tlačítko
     if (CursorPointing.isPointing) {
@@ -396,7 +399,6 @@ $('input:checkbox').change(
       }
     }
   });
-
 document.getElementById('userImage').addEventListener('change', function (e) {
 
   const userImage = e.target.files[0];
@@ -415,7 +417,7 @@ let zobrazenaNerovinost = false;
 $('#zobrazNerovinnost').click(function () {
   if (zobrazenaNerovinost == true) {
     zobrazenaNerovinost = false
-    $('#zobrazNerovinnost').css("background-color","#82959b")
+    $('#zobrazNerovinnost').css("background-color", "#82959b")
     for (let i = 0; i < modelsInScene.length; i++) {
       modelsInScene[i].material.color.set("#d9dadb");
     }
@@ -423,7 +425,7 @@ $('#zobrazNerovinnost').click(function () {
   } else {
     zobrazenaNerovinost = true
     interakceSModelem = false
-    $('#zobrazNerovinnost').css("background-color","#087ca7")
+    $('#zobrazNerovinnost').css("background-color", "#087ca7")
     let nejNepresnost = 0;
     for (let i = 0; i < modelsInScene.length; i++) {
       let normala
@@ -473,49 +475,17 @@ $('#zobrazNerovinnost').click(function () {
         predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
         predchoziB = { x: VBodu.x, y: VBodu.z }
       }
-      if(nepresnost > nejNepresnost){
+      if (nepresnost > nejNepresnost) {
         nejNepresnost = nepresnost
       }
-      objekt.material.color.set(colorGradient(Math.min(nepresnost * 330, 100)/100, {red:78, green:169, blue:18}, {red:225, green:139, blue:7}, {red:218, green:42, blue:14}));
+      objekt.material.color.set(colorGradient(Math.min(nepresnost * 330, 100) / 100, { red: 78, green: 169, blue: 18 }, { red: 225, green: 139, blue: 7 }, { red: 218, green: 42, blue: 14 }));
     }
     $('#planarityRes').empty()
-    $('#planarityRes').text("The largest inaccuracy within a single polygon: "+ (nejNepresnost*10).toFixed(2)+" mm.")
+    $('#planarityRes').text("The largest inaccuracy within a single polygon: " + (nejNepresnost * 10).toFixed(2) + " mm.")
   }
 
 })
-// https://gist.github.com/gskema/2f56dc2e087894ffc756c11e6de1b5ed
-function colorGradient(fadeFraction, rgbColor1, rgbColor2, rgbColor3) {
-  var color1 = rgbColor1;
-  var color2 = rgbColor2;
-  var fade = fadeFraction;
-
-  // Do we have 3 colors for the gradient? Need to adjust the params.
-  if (rgbColor3) {
-    fade = fade * 2;
-
-    // Find which interval to use and adjust the fade percentage
-    if (fade >= 1) {
-      fade -= 1;
-      color1 = rgbColor2;
-      color2 = rgbColor3;
-    }
-  }
-
-  var diffRed = color2.red - color1.red;
-  var diffGreen = color2.green - color1.green;
-  var diffBlue = color2.blue - color1.blue;
-
-  var gradient = {
-    red: parseInt(Math.floor(color1.red + (diffRed * fade)), 10),
-    green: parseInt(Math.floor(color1.green + (diffGreen * fade)), 10),
-    blue: parseInt(Math.floor(color1.blue + (diffBlue * fade)), 10),
-  };
-
-  return 'rgb(' + gradient.red + ',' + gradient.green + ',' + gradient.blue + ')';
-}
-//gsap.to(cubeMesh.position, { duration: 1, delay: 5, x: 2})
-renderer.setSize(sizes.width, sizes.height);
-renderer.render(scene, camera);
+  ;
 
 // -----------------------------     Import .obj modelu      ----------------------------------------------------
 let chyby = [];
@@ -536,6 +506,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
   jQuery('.lds-ellipsis').css('opacity', '1');
   fr.onload = function () {
     jQuery('.lds-ellipsis').css('opacity', '0');
+    resetScene()
     // Reset of variables
     model = new THREE.Geometry();
     obrys.nove = 0;
@@ -688,3 +659,39 @@ document.getElementById("inputfile").addEventListener("change", function () {
   });
   fr.readAsText(this.files[0]);
 });
+// ------------------------      Funkce     ------------------
+function colorGradient(fadeFraction, rgbColor1, rgbColor2, rgbColor3) {
+  // https://gist.github.com/gskema/2f56dc2e087894ffc756c11e6de1b5ed
+  var color1 = rgbColor1;
+  var color2 = rgbColor2;
+  var fade = fadeFraction;
+
+  // Do we have 3 colors for the gradient? Need to adjust the params.
+  if (rgbColor3) {
+    fade = fade * 2;
+
+    // Find which interval to use and adjust the fade percentage
+    if (fade >= 1) {
+      fade -= 1;
+      color1 = rgbColor2;
+      color2 = rgbColor3;
+    }
+  }
+
+  var diffRed = color2.red - color1.red;
+  var diffGreen = color2.green - color1.green;
+  var diffBlue = color2.blue - color1.blue;
+
+  var gradient = {
+    red: parseInt(Math.floor(color1.red + (diffRed * fade)), 10),
+    green: parseInt(Math.floor(color1.green + (diffGreen * fade)), 10),
+    blue: parseInt(Math.floor(color1.blue + (diffBlue * fade)), 10),
+  };
+
+  return 'rgb(' + gradient.red + ',' + gradient.green + ',' + gradient.blue + ')';
+}
+function resetScene() {
+  zobrazenaNerovinost = false
+  $('#zobrazNerovinnost').css("background-color", "#82959b")
+  interakceSModelem = true
+}

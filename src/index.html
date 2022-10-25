@@ -9,34 +9,52 @@
 
 <body>
     <div class="hlavicka">
-        
+
     </div>
     <div class="import">
-        <p> <br>
-            Local unit: 1 = 1cm<br>set scale of model <input type="number" id="scale" value="1">
-        </p>
-        <div class="lds-ellipsis">
-            <div></div>
-            <div></div>
-            <div></div>
-            <div></div>
-        </div>
-        <input type="file" name="inputfile" id="inputfile" tex class="file" accept=".obj" />
-        <p class="info"></p>
-        <p>Import textury</p>
-        <input id="userImage" type="file" />
+        <dvi class="odstavec">
+            <div class="hlavicka">Model import</div>
+            <input type="file" name="inputfile" id="inputfile" tex class="file" accept=".obj" />
+            <p class="info"></p>
+            <div id="nacitani">
+                <div class="lds-ellipsis">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <p> <br>
+                Local unit: 1 = 1cm<br>set scale of model <input type="number" id="scale" value="1">
+            </p><br>
+        </dvi>
+        <dvi class="odstavec">
+            <div class="hlavicka">Model check</div>
+            <button id="zobrazNerovinnost">Inspect planarity</button>
+            <p id="planarityRes"></p>
+            <br>
+        </dvi>
+        <dvi class="odstavec">
+            <div class="hlavicka">Texture import</div>
+            <p>Import textury</p>
+            <input id="userImage" type="file" />
+        </dvi>
 
-        <button id="zobrazNerovinnost">Inspect planarity</button>
-        <p id="planarityRes"></p>
+
+
+        
+
+
+
         <div id="output"></div>
     </div>
     <div class="controlPanel">
-        <input type="checkbox"value="showGrid" checked>
+        <input type="checkbox" value="showGrid" checked>
         <label> Show grid</label><br>
-        <input type="checkbox"value="showAxisHelper" checked>
+        <input type="checkbox" value="showAxisHelper" checked>
         <label> Show axis helper</label>
     </div>
-    <div class="model"> 
+    <div class="model">
         <canvas class="webgl"></canvas>
     </div>
     <canvas id="">

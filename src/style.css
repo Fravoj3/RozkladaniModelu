@@ -22,7 +22,7 @@ p input{
     position: absolute;
     top: 80px;
     left: 0;
-    width: 60%;
+    width: 70%;
     height: calc(100% - 150px);
     background-color: #1f2121;
     /*background: linear-gradient(0deg, rgba(176,176,176,1) 0%, rgba(175,242,255,1) 100%);*/
@@ -31,17 +31,17 @@ p input{
 .import {
     position: absolute;
     top: 80px;
-    left: 60%;
-    width: calc(40% - 2px);
-    height: calc(100% - 170px);
+    left: 70%;
+    width: 30%;
+    height: calc(100% - 150px);
+    overflow-y: scroll;
     background-color: #e7e7e7;
-    border-left: solid 2px white;
 }
 
 #output {
     top: 160px;
     position: relative;
-    width: 100%;
+    width: calc(100% - 10px);
     bottom: 0px;
     font-family: monospace;
     height: 500px;
@@ -50,12 +50,12 @@ p input{
     overflow-y: scroll;
 }
 .info{
-    position: absolute;
     font-family: monospace;
     font-size: 1.3em;
+    /*position: absolute;
     float: right;
+    right: 50px;*/
     top: 15px;
-    right: 50px;
     color: black;
 }
 button{
@@ -87,7 +87,7 @@ input[type=file]::file-selector-button {
   position: absolute;
   z-index: 2;
   top: 90px;
-  left: calc(60% - 150px);
+  left: calc(70% - 154px);
   font-family:monospace;
   color: white;
 }
@@ -100,8 +100,33 @@ input[type=file] {
 input[type=file]::file-selector-button:hover {
     background: #076283;
 }
-
-
+.odstavec{
+  margin: 0px;
+}
+.odstavec .hlavicka{
+  position: relative;
+  box-sizing: border-box;
+  background-color: #444;
+  color: white;
+  font-family: monospace;
+  font-size: 20px;
+  padding: 5px 15px;
+  height: 35px;
+  border-radius: 0px 0px 5px 5px;
+}
+/*
+----------------   Scrollbar  -------
+*/
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: white; 
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(62, 62, 62); 
+  border-radius: 3px;
+}
 
 .lds-ellipsis {
     opacity: 0;

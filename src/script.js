@@ -12,21 +12,16 @@ window.jQuery = $;
 window.$ = $;
 require('nerdamer/Solve');
 
+// --------------------------------------        Nastavení scény       -----------------------------------
 const canvas = document.querySelector("canvas.webgl");
 const parent = document.querySelector(".model");
 var parentSize = parent.getBoundingClientRect();
-
-// Sizes
 const sizes = {
   width: parentSize.width,
   height: parentSize.height
 };
-
 // Scene
 const scene = new THREE.Scene();
-let modelsInScene = [];
-let interakceSModelem = true;
-
 //axis helper + geid helper
 const axisHelper = new THREE.AxesHelper(5);
 scene.add(axisHelper);
@@ -34,7 +29,6 @@ const gridHelper = new THREE.GridHelper(100, 100, 0x0000ff, 0x808080);
 gridHelper.position.y = -0.01;
 gridHelper.position.x = 0;
 scene.add(gridHelper);
-
 // Camera
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -45,7 +39,6 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.z = 5;
 camera.position.y = 3;
 scene.add(camera);
-
 // Lights
 const color = 0xffffff;
 const intensity = 1;
@@ -57,7 +50,6 @@ light2.position.set(30, 1, -5);
 scene.add(light2);
 const ambLight = new THREE.AmbientLight(0x404040); // soft white light
 scene.add(ambLight);
-
 // Renderer
 const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
@@ -66,10 +58,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(sizes.width, sizes.height);
 renderer.render(scene, camera)
-
-let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
-
-//--------------------   Auto-update
+//  Auto-update
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
 (function update() {
@@ -82,8 +71,28 @@ const cameraControls = new CameraControls(camera, renderer.domElement);
 
 })();
 
-// -------------------    Listeners    ----------------------------------------------------
-//resize listener
+// --------------------------------------        Variables        -----------------------------------
+let interakceSModelem = true; // je povoleno uživateli interagovat s modelem
+let zobrazenaNerovinost = false; // Jsme v režimu vizualizace nrovnosti?
+let zobrazTexturu = false
+let pointedObjects = []; // kurzorem právě vybrané polygony
+let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
+let neinteraguje = true; // pokud uživatel právě neinteraguje s modelem
+
+let modelsInScene = []; // Seznam poygonů ve svéně z importovaného modelu
+let texture = null // textura pro model
+// Import modelu
+let chyby = []; // Chyby v modelu
+let koeficientVel = 1; // Měřítko modelu
+let model; // model k zobazení
+let vertices;
+let verticesVectors = []
+let UVCoordinates = []
+let faces;
+let faceNormal = []
+let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
+let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
+// --------------------------------------        Listeners        -----------------------------------
 window.addEventListener("resize", event => {
   console.log("resize");
   parentSize = parent.getBoundingClientRect();
@@ -97,11 +106,8 @@ window.addEventListener("resize", event => {
 });
 // On mouse move select
 // demo2s.com/javascript/javascript-three-js-when-mouseover-hover-on-object-the-mouse-cursor.html
-let pointedObjects = [];
-let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
-var raycaster = new THREE.Raycaster();
-let neinteraguje = true;
 document.addEventListener('mousemove', event => {
+  var raycaster = new THREE.Raycaster();
   if (interakceSModelem) {
     // Sedí horizontálně
     neinteraguje = true;
@@ -400,20 +406,14 @@ $('input:checkbox').change(
     }
   });
 document.getElementById('userImage').addEventListener('change', function (e) {
-
   const userImage = e.target.files[0];
   const userImageURL = URL.createObjectURL(userImage);
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin("");
-  let texture = loader.load(userImageURL);
-
-  //CursorPointing.object.material.specularMap = texture
-  CursorPointing.object.material.map = texture
-  //texture.needsUpdate = true
-  CursorPointing.object.material.needsUpdate = true
-  console.log(CursorPointing.object)
+  texture = loader.load(userImageURL);
+  showTexture()
 });
-let zobrazenaNerovinost = false;
+// Vizualizace nerovinnosti modelu
 $('#zobrazNerovinnost').click(function () {
   if (zobrazenaNerovinost == true) {
     zobrazenaNerovinost = false
@@ -425,8 +425,10 @@ $('#zobrazNerovinnost').click(function () {
   } else {
     zobrazenaNerovinost = true
     interakceSModelem = false
+    hideTexture()
     $('#zobrazNerovinnost').css("background-color", "#087ca7")
     let nejNepresnost = 0;
+
     for (let i = 0; i < modelsInScene.length; i++) {
       let normala
       const objekt = modelsInScene[i]
@@ -485,23 +487,45 @@ $('#zobrazNerovinnost').click(function () {
   }
 
 })
-  ;
-
-// -----------------------------     Import .obj modelu      ----------------------------------------------------
-let chyby = [];
-let koeficientVel = 1;
-let model; // model k zobazení
-let vertices;
-let verticesVectors = []
-let UVCoordinates = []
-let faces;
-let faceNormal = []
-
-let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
-document.getElementById("inputfile").addEventListener("change", function () {
-  if (!isNaN($('#scale').val()) && Number($('#scale').val()) > 0) {
-    koeficientVel = $('#scale').val();
+$('#zobrazTexturu').click(function () {
+  if (zobrazTexturu == true) {
+    hideTexture()
+  } else {
+    showTexture()
   }
+})
+// Změna měřítka
+$('#scale').on("input", function () {
+  if (!isNaN($('#scale').val()) && Number($('#scale').val()) > 0) {
+    const predchoziK = koeficientVel
+    koeficientVel = $('#scale').val();
+    for (let i = 0; i < modelsInScene.length; i++) {
+      modelsInScene[i].scale.set(koeficientVel, koeficientVel, koeficientVel)
+    }
+    // -------------   přepočítání velikosti modelu
+    obrys.xMax *= (1 / predchoziK) * koeficientVel
+    obrys.xMin *= (1 / predchoziK) * koeficientVel
+    obrys.yMax *= (1 / predchoziK) * koeficientVel
+    obrys.yMin *= (1 / predchoziK) * koeficientVel
+    obrys.zMax *= (1 / predchoziK) * koeficientVel
+    obrys.zMin *= (1 / predchoziK) * koeficientVel
+
+    for (let i = 0; i < vertices.length; i++) {
+      vertices[i].x *= (1 / predchoziK) * koeficientVel
+      vertices[i].y *= (1 / predchoziK) * koeficientVel
+      vertices[i].z *= (1 / predchoziK) * koeficientVel
+    }
+    updateModelInfo()
+  }
+})
+$('#save').click(function () {
+  exportToJsonFile()
+})
+$('#load').click(function () {
+  loadFromJsonFile()
+})
+// -----------------------------     Import .obj modelu      ----------------------------------------------------
+document.getElementById("inputfile").addEventListener("change", function () {
   var fr = new FileReader();
   jQuery('.lds-ellipsis').css('opacity', '1');
   fr.onload = function () {
@@ -515,6 +539,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
     verticesVectors = [];
     faces = [];
     modelsInScene = [];
+    hideTexture()
     for (let i = scene.children.length - 1; i >= 0; i--) {
       if (scene.children[i].type === "Mesh") {
         scene.remove(scene.children[i]);
@@ -525,8 +550,13 @@ document.getElementById("inputfile").addEventListener("change", function () {
     const lines = String(fr.result).split("\n");
     // Cteni radek po radku obj souboru
     for (let i = 0; i < lines.length; i++) {
-      const pof = lines[i].split(" ");
+      // Vypsání procent
+      if (i % 1000 == 0) {
+        const procento = i / lines.length
+        //console.log(procento)
+      }
 
+      const pof = lines[i].split(" ");
       // Pridavani vrcholu  
       if (pof[0] == "v") {
         pof[1] = Number(pof[1]) * koeficientVel;
@@ -605,8 +635,9 @@ document.getElementById("inputfile").addEventListener("change", function () {
               new THREE.Face3(verts[0] - 1, verts[2] - 1, verts[3] - 1)
             );
             if (UVCoordinates.length > 0) {
-              model.faceVertexUvs[0].push([UVs[0], UVs[1], UVs[2]]);
-              model.faceVertexUvs[0].push([UVs[2], UVs[1], UVs[3]]);
+              model.faceVertexUvs[0].push(
+                [UVs[0], UVs[1], UVs[2]],
+                [UVs[0], UVs[2], UVs[3]]);
             }
           }
           if (verts.length > 4) {
@@ -633,8 +664,6 @@ document.getElementById("inputfile").addEventListener("change", function () {
         scene.add(modelMash);
         modelsInScene.push(modelMash);
         model = new THREE.Geometry();
-
-
       }
     }
     // Přidání jednotkové krychle
@@ -651,8 +680,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
     gridHelper.position.y = obrys.yMin - 0.01;
     axisHelper.position.y = obrys.yMin;
     // Load info
-    jQuery('.info').empty()
-    jQuery('.info').append("Vertices: " + vertices.length + "<br>Polygons: " + faces.length + "<br>Sizes:<br>" + ((obrys.xMin * -1) + obrys.xMax).toFixed(2) + " x " + ((obrys.yMin * -1) + obrys.yMax).toFixed(2) + " x " + ((obrys.zMin * -1) + obrys.zMax).toFixed(2));
+    updateModelInfo()
   };
   fr.addEventListener("error", event => {
     document.getElementById("output").textContent = "Can not load file";
@@ -695,3 +723,82 @@ function resetScene() {
   $('#zobrazNerovinnost').css("background-color", "#82959b")
   interakceSModelem = true
 }
+function updateModelInfo() {
+  jQuery('.info').empty()
+  jQuery('.info').append("Vertices: " + vertices.length + "<br>Polygons: " + faces.length + "<br>Sizes:<br>" + ((obrys.xMin * -1) + obrys.xMax).toFixed(2) + " x " + ((obrys.yMin * -1) + obrys.yMax).toFixed(2) + " x " + ((obrys.zMin * -1) + obrys.zMax).toFixed(2));
+}
+function exportToJsonFile() {
+  // https://www.codegrepper.com/code-examples/javascript/export+json+file+javascript
+  let customModelData = { verts: vertices, faces: faces, faceNormal: faceNormal, uv: UVCoordinates, obrys: obrys, koeficient: koeficientVel }
+  const image = btoa(texture)
+  let meshs = []
+  let objs = []
+  for (let i = 0; i < modelsInScene.length; i++) {
+    console.log(modelsInScene[i])
+    const onjjso = modelsInScene[i].toJSON()
+    console.log(JSON.parse(modelsInScene[i]))
+    //objs.push()
+  }
+  let exportData = { modelsInScene: objs, customModelData: customModelData, texture: image }
+
+  let dataStr = JSON.stringify(exportData);
+  let dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+  let exportFileDefaultName = 'data.json';
+
+  let linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+}
+function loadFromJsonFile() {
+  readTextFile("data.json", function (text) {
+    let jsonLoader = new THREE.JSONLoader();
+    let data = JSON.parse(text);
+    let loader = new THREE.ObjectLoader();
+    vertices = data.customModelData.verts
+    faces = data.customModelData.faces
+    faceNormal = data.customModelData.faceNormal
+    UVCoordinates = data.customModelData.uv
+    obrys = data.customModelData.obrys
+    koeficientVel = data.customModelData.koeficientVel
+    modelsInScene = data.modelsInScene
+    texture = data.texture
+    for (let i = 0; i < modelsInScene.length; i++) {
+      console.log(modelsInScene[i])
+      const modelMash = new THREE.Mesh(
+        modelsInScene[i].geometryes[0], modelsInScene[i].geometryes[0]);
+      scene.add(loader.parse(modelsInScene[i]))
+    }
+  });
+}
+function hideTexture() {
+  zobrazTexturu = false
+  $('#zobrazTexturu').css("background-color", "#82959b")
+  for (let i = 0; i < modelsInScene.length; i++) {
+    modelsInScene[i].material.color.set("#d9dadb");
+    modelsInScene[i].material.map = null
+    modelsInScene[i].material.needsUpdate = true
+  }
+}
+function showTexture() {
+  zobrazTexturu = true
+  $('#zobrazTexturu').css("background-color", "#087ca7")
+  if (texture != null) {
+    for (let i = 0; i < modelsInScene.length; i++) {
+      modelsInScene[i].material.map = texture
+      modelsInScene[i].material.needsUpdate = true
+    }
+  }
+}
+function readTextFile(file, callback) {
+  var rawFile = new XMLHttpRequest();
+  rawFile.overrideMimeType("application/json");
+  rawFile.open("GET", file, true);
+  rawFile.onreadystatechange = function () {
+    if (rawFile.readyState === 4 && rawFile.status == "200") {
+      callback(rawFile.responseText);
+    }
+  }
+  rawFile.send(null);
+} 

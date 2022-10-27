@@ -12,7 +12,7 @@
 
     </div>
     <div class="import">
-        <dvi class="odstavec">
+        <div class="odstavec">
             <div class="hlavicka">Model import</div>
             <input type="file" name="inputfile" id="inputfile" tex class="file" accept=".obj" />
             <p class="info"></p>
@@ -27,23 +27,25 @@
             <p> <br>
                 Local unit: 1 = 1cm<br>set scale of model <input type="number" id="scale" value="1">
             </p><br>
-        </dvi>
-        <dvi class="odstavec">
+        </div>
+        <div class="odstavec">
             <div class="hlavicka">Model check</div>
             <button id="zobrazNerovinnost">Inspect planarity</button>
             <p id="planarityRes"></p>
             <br>
-        </dvi>
-        <dvi class="odstavec">
+        </div>
+        <div class="odstavec">
             <div class="hlavicka">Texture import</div>
             <p>Import textury</p>
             <input id="userImage" type="file" />
-        </dvi>
+            <button id="zobrazTexturu">Show texture</button>
+        </div>
 
 
-
+        <a id="save">Save</a>
         
-
+        <a id="load">Load</a>
+        <input type="file" id="json">
 
 
         <div id="output"></div>

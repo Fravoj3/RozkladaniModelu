@@ -72,15 +72,17 @@ const cameraControls = new CameraControls(camera, renderer.domElement);
 })();
 
 // --------------------------------------        Variables        -----------------------------------
-let interakceSModelem = true; // je povoleno uživateli interagovat s modelem
+let interakceSModelem = true; // je povoleno uživateli interagovat s modelem?
 let zobrazenaNerovinost = false; // Jsme v režimu vizualizace nrovnosti?
-let zobrazTexturu = false
+let zobrazTexturu = false // Jsme v režimu zobrazování textury na modelu? 
 let pointedObjects = []; // kurzorem právě vybrané polygony
 let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
 let neinteraguje = true; // pokud uživatel právě neinteraguje s modelem
 
 let modelsInScene = []; // Seznam poygonů ve svéně z importovaného modelu
 let texture = null // textura pro model
+let textureFile
+let textureType
 // Import modelu
 let chyby = []; // Chyby v modelu
 let koeficientVel = 1; // Měřítko modelu
@@ -89,6 +91,7 @@ let vertices;
 let verticesVectors = []
 let UVCoordinates = []
 let faces;
+let polys = []
 let faceNormal = []
 let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
 let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
@@ -204,7 +207,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         }
       }
       if (n.nastaven) {
-        /*console.log("Bod a")
+        console.log("Bod a")
         console.log(a)
         console.log("vektor u")
         console.log(u)
@@ -213,7 +216,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         console.log("normála n")
         console.log(n)
         console.log("Soubor vrcholů")
-        console.log(vertsToPlannarize)*/
+        console.log(vertsToPlannarize)
 
         // ----- Těžišzě
         teziste.x = teziste.x / teziste.vertCount
@@ -406,9 +409,15 @@ $('input:checkbox').change(
     }
   });
 document.getElementById('userImage').addEventListener('change', function (e) {
-  const userImage = e.target.files[0];
-  const userImageURL = URL.createObjectURL(userImage);
-  const loader = new THREE.TextureLoader();
+  let userImage = e.target.files[0];
+  textureType = userImage.type
+  let userImageURL = URL.createObjectURL(userImage);
+  const reader = new FileReader()
+  reader.onloadend = function () {
+    textureFile = reader.result
+  }
+  reader.readAsDataURL(userImage);
+  let loader = new THREE.TextureLoader();
   loader.setCrossOrigin("");
   texture = loader.load(userImageURL);
   showTexture()
@@ -516,6 +525,7 @@ $('#scale').on("input", function () {
       vertices[i].z *= (1 / predchoziK) * koeficientVel
     }
     updateModelInfo()
+    updateHelpers()
   }
 })
 $('#save').click(function () {
@@ -531,20 +541,6 @@ document.getElementById("inputfile").addEventListener("change", function () {
   fr.onload = function () {
     jQuery('.lds-ellipsis').css('opacity', '0');
     resetScene()
-    // Reset of variables
-    model = new THREE.Geometry();
-    obrys.nove = 0;
-    vertices = [];
-    UVCoordinates = []
-    verticesVectors = [];
-    faces = [];
-    modelsInScene = [];
-    hideTexture()
-    for (let i = scene.children.length - 1; i >= 0; i--) {
-      if (scene.children[i].type === "Mesh") {
-        scene.remove(scene.children[i]);
-      }
-    }
     // Print .obj
     document.getElementById("output").innerHTML = String(fr.result).replaceAll("\n", '<br>');
     const lines = String(fr.result).split("\n");
@@ -604,6 +600,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
       }
       // Pridani polygonu
       if (pof[0] == "f") {
+        let exportPolys = { faces: [], uvs: [] }
         model.vertices = verticesVectors;
         model.faceVertexUvs[0] = [];
         const UVs = [];
@@ -621,12 +618,14 @@ document.getElementById("inputfile").addEventListener("change", function () {
           model.faces.push(
             new THREE.Face3(verts[0] - 1, verts[1] - 1, verts[2] - 1)
           );
+          exportPolys.faces.push({ a: verts[0] - 1, b: verts[1] - 1, c: verts[2] - 1 })
           if (UVCoordinates.length > 0) {
             model.faceVertexUvs[0].push([
               UVs[0],
               UVs[1],
               UVs[2]
             ]);
+            exportPolys.uvs.push({ a: { u: UVs[0].x, v: UVs[0].y }, b: { u: UVs[1].x, v: UVs[1].y }, c: { u: UVs[2].x, v: UVs[2].y } })
           }
         } else {
           if (verts.length == 4) {
@@ -634,10 +633,12 @@ document.getElementById("inputfile").addEventListener("change", function () {
               new THREE.Face3(verts[0] - 1, verts[1] - 1, verts[2] - 1),
               new THREE.Face3(verts[0] - 1, verts[2] - 1, verts[3] - 1)
             );
+            exportPolys.faces.push({ a: verts[0] - 1, b: verts[1] - 1, c: verts[2] - 1 }, { a: verts[0] - 1, b: verts[2] - 1, c: verts[3] - 1 })
             if (UVCoordinates.length > 0) {
               model.faceVertexUvs[0].push(
                 [UVs[0], UVs[1], UVs[2]],
                 [UVs[0], UVs[2], UVs[3]]);
+              exportPolys.uvs.push({ a: { u: UVs[0].x, v: UVs[0].y }, b: { u: UVs[1].x, v: UVs[1].y }, c: { u: UVs[2].x, v: UVs[2].y } }, { a: { u: UVs[0].x, v: UVs[0].y }, b: { u: UVs[2].x, v: UVs[2].y }, c: { u: UVs[3].x, v: UVs[3].y } })
             }
           }
           if (verts.length > 4) {
@@ -645,8 +646,10 @@ document.getElementById("inputfile").addEventListener("change", function () {
               model.faces.push(
                 new THREE.Face3(verts[0] - 1, verts[l - 1] - 1, verts[l] - 1)
               );
+              exportPolys.faces.push({ a: verts[0] - 1, b: verts[l - 1] - 1, c: verts[l] - 1 })
               if (UVCoordinates.length > 0) {
                 model.faceVertexUvs[0].push([UVs[0], UVs[l - 1], UVs[l]]);
+                exportPolys.uvs.push({ a: { u: UVs[0].x, v: UVs[0].y }, b: { u: UVs[l - 1].x, v: UVs[l - 1].y }, c: { u: UVs[l].x, v: UVs[l].y } })
               }
             }
           }
@@ -658,6 +661,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
           console.log("Custom UVs")
           //console.log(model)
         }
+        polys.push(Object.assign({}, exportPolys))
         const modelMash = new THREE.Mesh(
           model, new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));
         modelMash.userData.name = faces.length - 1;
@@ -677,8 +681,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
     cubeMesh.position.set(obrys.xMax, obrys.yMin, parseInt(obrys.zMax) + 2);
     scene.add(cubeMesh);*/
 
-    gridHelper.position.y = obrys.yMin - 0.01;
-    axisHelper.position.y = obrys.yMin;
+    updateHelpers()
     // Load info
     updateModelInfo()
   };
@@ -722,6 +725,20 @@ function resetScene() {
   zobrazenaNerovinost = false
   $('#zobrazNerovinnost').css("background-color", "#82959b")
   interakceSModelem = true
+  model = new THREE.Geometry();
+  obrys.nove = 0;
+  vertices = [];
+  polys = []
+  UVCoordinates = []
+  verticesVectors = [];
+  faces = [];
+  modelsInScene = [];
+  hideTexture()
+  for (let i = scene.children.length - 1; i >= 0; i--) {
+    if (scene.children[i].type === "Mesh") {
+      scene.remove(scene.children[i]);
+    }
+  }
 }
 function updateModelInfo() {
   jQuery('.info').empty()
@@ -729,18 +746,11 @@ function updateModelInfo() {
 }
 function exportToJsonFile() {
   // https://www.codegrepper.com/code-examples/javascript/export+json+file+javascript
-  let customModelData = { verts: vertices, faces: faces, faceNormal: faceNormal, uv: UVCoordinates, obrys: obrys, koeficient: koeficientVel }
-  const image = btoa(texture)
-  let meshs = []
-  let objs = []
-  for (let i = 0; i < modelsInScene.length; i++) {
-    console.log(modelsInScene[i])
-    const onjjso = modelsInScene[i].toJSON()
-    console.log(JSON.parse(modelsInScene[i]))
-    //objs.push()
-  }
-  let exportData = { modelsInScene: objs, customModelData: customModelData, texture: image }
+  let customModelData = { verts: vertices, faces: faces, faceNormal: faceNormal, uv: UVCoordinates, obrys: obrys, koeficient: koeficientVel}
 
+  const image = textureFile
+  console.log(image)
+  let exportData = { polys: polys, customModelData: customModelData, texture: image, textureType: textureType }
   let dataStr = JSON.stringify(exportData);
   let dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
@@ -753,23 +763,70 @@ function exportToJsonFile() {
 }
 function loadFromJsonFile() {
   readTextFile("data.json", function (text) {
-    let jsonLoader = new THREE.JSONLoader();
     let data = JSON.parse(text);
-    let loader = new THREE.ObjectLoader();
-    vertices = data.customModelData.verts
-    faces = data.customModelData.faces
-    faceNormal = data.customModelData.faceNormal
-    UVCoordinates = data.customModelData.uv
+    faceNormal = data.customModelData.faceNormal.slice()
     obrys = data.customModelData.obrys
-    koeficientVel = data.customModelData.koeficientVel
-    modelsInScene = data.modelsInScene
-    texture = data.texture
-    for (let i = 0; i < modelsInScene.length; i++) {
-      console.log(modelsInScene[i])
-      const modelMash = new THREE.Mesh(
-        modelsInScene[i].geometryes[0], modelsInScene[i].geometryes[0]);
-      scene.add(loader.parse(modelsInScene[i]))
+    koeficientVel = data.customModelData.koeficient
+    let verticesVectors = []
+
+    let blob = new Blob([data.texture], { type: data.textureType });
+    let imgURL = URL.createObjectURL(blob)
+    let loader = new THREE.TextureLoader();
+    loader.setCrossOrigin("");
+    texture = loader.load(imgURL);
+
+    console.log(data.textureType)
+    let linkElement = document.createElement('a');
+    linkElement.setAttribute('href', imgURL);
+    linkElement.setAttribute('download', data.textureType);
+    linkElement.click();
+
+    resetScene()
+    $('#scale').val(koeficientVel)
+
+    // Import UVs
+    for (let i = 0; i < data.customModelData.uv.length; i++) {
+      UVCoordinates.push({ u: data.customModelData.uv[i].u, v: data.customModelData.uv[i].v })
+    }// Import verts
+    for (let i = 0; i < data.customModelData.verts.length; i++) {
+      const vert = data.customModelData.verts[i]
+      verticesVectors.push(new THREE.Vector3(vert.x, vert.y, vert.z))
+      vertices.push({ x: vert.x, y: vert.y, z: vert.z })
     }
+    // Import based on Custom data
+    for (let i = 0; i < data.polys.length; i++) {
+      const pol = data.polys[i]
+      let model = new THREE.Geometry();
+      model.vertices = verticesVectors;
+      model.faceVertexUvs[0] = [];
+      const poly = pol.faces
+      const uvs = pol.uvs
+
+      let verts = []
+      for (let l = 0; l < poly.length; l++) {
+        verts.push(poly[l].a + 1, poly[l].b + 1, poly[l].c + 1)
+        model.faces.push(
+          new THREE.Face3(poly[l].a, poly[l].b, poly[l].c)
+        );
+        if (UVCoordinates.length > 0) {
+          model.faceVertexUvs[0].push([
+            new THREE.Vector2(uvs[l].a.u, uvs[l].a.v),
+            new THREE.Vector2(uvs[l].b.u, uvs[l].b.v),
+            new THREE.Vector2(uvs[l].c.u, uvs[l].c.v)
+          ]);
+        }
+      }
+      faces.push(verts)
+      model.computeFaceNormals();
+      model.uvsNeedUpdate = true;
+      const modelMash = new THREE.Mesh(
+        model, new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));
+      modelMash.userData.name = i;
+      modelsInScene.push(modelMash)
+      scene.add(modelMash)
+    }
+    updateHelpers()
+    updateModelInfo()
   });
 }
 function hideTexture() {
@@ -801,4 +858,8 @@ function readTextFile(file, callback) {
     }
   }
   rawFile.send(null);
-} 
+}
+function updateHelpers() {
+  gridHelper.position.y = obrys.yMin - 0.01;
+  axisHelper.position.y = obrys.yMin;
+}

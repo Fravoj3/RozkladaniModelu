@@ -6,13 +6,16 @@ import gsap from "gsap";
 import * as mathjs from 'mathjs'
 import CameraControls from 'camera-controls';
 import matrix from 'matrix-js';
+import structuredClone from 'structured-clone';
+import { Camera } from "three";
 CameraControls.install({ THREE: THREE });
 var $ = require('jquery');
 window.jQuery = $;
 window.$ = $;
 require('nerdamer/Solve');
 
-// --------------------------------------        Nastavení scény       -----------------------------------
+
+// --------------------------------------        Nastavení 3D scény       -----------------------------------
 const canvas = document.querySelector("canvas.webgl");
 const parent = document.querySelector(".model");
 var parentSize = parent.getBoundingClientRect();
@@ -43,12 +46,12 @@ scene.add(camera);
 const color = 0xffffff;
 const intensity = 1;
 const light = new THREE.DirectionalLight(color, intensity);
-light.position.set(-30, 2, 4);
+light.position.set(50, 100, 50);
 scene.add(light);
-const light2 = new THREE.DirectionalLight({ color: 0xffffff, intensity: 1 });
-light2.position.set(30, 1, -5);
+const light2 = new THREE.DirectionalLight(color, intensity);
+light2.position.set(-50, -100,-80);
 scene.add(light2);
-const ambLight = new THREE.AmbientLight(0x404040); // soft white light
+const ambLight = new THREE.AmbientLight(0x404040, 4); // soft white light
 scene.add(ambLight);
 // Renderer
 const renderer = new THREE.WebGLRenderer({
@@ -58,17 +61,43 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(sizes.width, sizes.height);
 renderer.render(scene, camera)
+//--------------------------------------     Set 2D Scene    -----------------------------------------
+const canvas2D = document.querySelector("canvas.webgl2D");
+const parent2D = document.querySelector(".model2D");
+var parentSize2D = parent2D.getBoundingClientRect();
+const sizes2D = {
+  width: parentSize2D.width,
+  height: parentSize2D.height
+};
+// Scene
+let zoom2D = 100;
+const scene2D = new THREE.Scene();
+const camera2D = new THREE.OrthographicCamera(sizes2D.width / -zoom2D, sizes2D.width / zoom2D, sizes2D.height / zoom2D, sizes2D.height / -zoom2D, 0.1, 1000);
+camera2D.position.y = 10;
+scene2D.add(camera2D);
+scene2D.add(ambLight);
+// Renderer
+const renderer2D = new THREE.WebGLRenderer({
+  canvas: canvas2D,
+  antialias: true,
+  alpha: true
+});
+renderer2D.setSize(sizes2D.width, sizes2D.height);
+renderer2D.render(scene2D, camera2D)
 //  Auto-update
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
+const cameraControls2D = new CameraControls(camera2D, renderer2D.domElement);
+cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE;
 (function update() {
   // snip
   const delta = clock.getDelta();
-  const hasControlsUpdated = cameraControls.update(delta);
-  requestAnimationFrame(update);
+  const hasControlsUpdated = cameraControls.update(delta)
+  const hasControlsUpdated2D = cameraControls2D.update(delta)
+  requestAnimationFrame(update)
   // you can skip this condition to render though
-  renderer.render(scene, camera);
-
+  renderer.render(scene, camera)
+  renderer2D.render(scene2D, camera2D)
 })();
 
 // --------------------------------------        Variables        -----------------------------------
@@ -87,17 +116,16 @@ let textureType
 let chyby = []; // Chyby v modelu
 let koeficientVel = 1; // Měřítko modelu
 let model; // model k zobazení
-let vertices;
+let vertices = [];
 let verticesVectors = []
 let UVCoordinates = []
-let faces;
+let faces = [];
 let polys = []
 let faceNormal = []
 let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
 let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
 // --------------------------------------        Listeners        -----------------------------------
 window.addEventListener("resize", event => {
-  console.log("resize");
   parentSize = parent.getBoundingClientRect();
   sizes.width = parentSize.width;
   sizes.height = parentSize.height;
@@ -106,6 +134,18 @@ window.addEventListener("resize", event => {
 
   renderer.setSize(sizes.width, sizes.height);
   renderer.pixelRatio = Math.min(2, window.devicePixelRatio);
+
+  parentSize2D = parent2D.getBoundingClientRect();
+  sizes2D.width = parentSize2D.width;
+  sizes2D.height = parentSize2D.height;
+  camera2D.left = sizes2D.width / -zoom2D;
+  camera2D.right = sizes2D.width / zoom2D;
+  camera2D.top = sizes2D.height / zoom2D;
+  camera2D.bottom = sizes2D.height / -zoom2D;
+  camera2D.updateProjectionMatrix();
+
+  renderer2D.setSize(sizes2D.width, sizes2D.height);
+  renderer2D.pixelRatio = Math.min(2, window.devicePixelRatio);
 });
 // On mouse move select
 // demo2s.com/javascript/javascript-three-js-when-mouseover-hover-on-object-the-mouse-cursor.html
@@ -122,6 +162,33 @@ document.addEventListener('mousemove', event => {
         mouse.y = - ((event.clientY - parentSize.top) / parentSize.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
         var intersects = raycaster.intersectObjects(modelsInScene);
+        if (intersects.length > 0) {
+          CursorPointing.x = intersects[0].point.x
+          CursorPointing.y = intersects[0].point.y
+          CursorPointing.z = intersects[0].point.z
+          CursorPointing.isPointing = true;
+          CursorPointing.object = intersects[0].object;
+          neinteraguje = false;
+          if (!event.ctrlKey) {// Nechceme zanechávat stopu
+            for (let i = 0; i < pointedObjects.length; i++) {
+              pointedObjects[i].material.color.set("#d9dadb");
+            }
+            pointedObjects = [];
+          }
+          intersects[0].object.material.color.set("#d3791a")
+          pointedObjects.push(intersects[0].object);
+          //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
+        }
+      }
+    }
+    // Interakce v 2D okně
+    if (event.clientX > parentSize2D.left && event.clientX < parentSize2D.left + parentSize2D.width) {
+      if (event.clientY > parentSize2D.top && event.clientY < parentSize2D.top + parentSize2D.height) {
+        var mouse = new THREE.Vector2();
+        mouse.x = ((event.clientX - parentSize2D.left) / parentSize2D.width) * 2 - 1;
+        mouse.y = - ((event.clientY - parentSize2D.top) / parentSize2D.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera2D);
+        var intersects = raycaster.intersectObjects(objects2D);
         if (intersects.length > 0) {
           CursorPointing.x = intersects[0].point.x
           CursorPointing.y = intersects[0].point.y
@@ -207,7 +274,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         }
       }
       if (n.nastaven) {
-        console.log("Bod a")
+        /*console.log("Bod a")
         console.log(a)
         console.log("vektor u")
         console.log(u)
@@ -216,7 +283,7 @@ renderer.domElement.addEventListener('mousedown', event => {
         console.log("normála n")
         console.log(n)
         console.log("Soubor vrcholů")
-        console.log(vertsToPlannarize)
+        console.log(vertsToPlannarize)*/
 
         // ----- Těžišzě
         teziste.x = teziste.x / teziste.vertCount
@@ -534,6 +601,9 @@ $('#save').click(function () {
 $('#load').click(function () {
   loadFromJsonFile()
 })
+$('#unwrap').click(function () {
+  unwrap()
+})
 // -----------------------------     Import .obj modelu      ----------------------------------------------------
 document.getElementById("inputfile").addEventListener("change", function () {
   var fr = new FileReader();
@@ -733,10 +803,17 @@ function resetScene() {
   verticesVectors = [];
   faces = [];
   modelsInScene = [];
+  objects2D = []
+  points2D = []
   hideTexture()
   for (let i = scene.children.length - 1; i >= 0; i--) {
     if (scene.children[i].type === "Mesh") {
       scene.remove(scene.children[i]);
+    }
+  }
+  for (let i = scene2D.children.length - 1; i >= 0; i--) {
+    if (scene2D.children[i].type === "Mesh") {
+      scene2D.remove(scene2D.children[i]);
     }
   }
 }
@@ -746,7 +823,7 @@ function updateModelInfo() {
 }
 function exportToJsonFile() {
   // https://www.codegrepper.com/code-examples/javascript/export+json+file+javascript
-  let customModelData = { verts: vertices, faces: faces, faceNormal: faceNormal, uv: UVCoordinates, obrys: obrys, koeficient: koeficientVel}
+  let customModelData = { verts: vertices, faces: faces, faceNormal: faceNormal, uv: UVCoordinates, obrys: obrys, koeficient: koeficientVel }
 
   const image = textureFile
   console.log(image)
@@ -862,4 +939,108 @@ function readTextFile(file, callback) {
 function updateHelpers() {
   gridHelper.position.y = obrys.yMin - 0.01;
   axisHelper.position.y = obrys.yMin;
+}
+let points2D = []
+let objects2D = []
+function unwrap() {
+  for (let i = 0; i < modelsInScene.length; i++) {
+    const currPoly = faces[modelsInScene[i].userData.name]
+    let a = { x: 0, y: 0, z: 0, nastaven: false }
+    let u = { x: 0, y: 0, z: 0, nastaven: false }
+    let v = { x: 0, y: 0, z: 0, nastaven: false }
+    let n = { x: 0, y: 0, z: 0, nastaven: false }
+    let vertsToPlannarize = []
+    for (const vert of currPoly) {
+      let x = Number(vertices[vert - 1].x)
+      let y = Number(vertices[vert - 1].y)
+      let z = Number(vertices[vert - 1].z)
+      vertsToPlannarize.push({ x: x, y: y, z: z })
+      if (!a.nastaven) {
+        a.x = x
+        a.y = y
+        a.z = z
+        a.nastaven = true
+        continue
+      }
+      if (a.nastaven && !u.nastaven) {
+        u.x = x - a.x
+        u.y = y - a.y
+        u.z = z - a.z
+        u.nastaven = true
+        continue
+      }
+      if (u.nastaven && !v.nastaven) {
+        v.x = x - a.x
+        v.y = y - a.y
+        v.z = z - a.z
+        n.x = (u.y * v.z - u.z * v.y)
+        n.y = (u.z * v.x - v.z * u.x)
+        n.z = (u.x * v.y - u.y * v.x)
+        if (n.x + n.y + n.z != 0) {
+          v.nastaven = true
+          n.nastaven = true
+        }
+      }
+    }
+    if (n.nastaven) {
+      let normala
+      if (faceNormal.length == faces.length) {// Máme importovanou normálu polygonu
+        normala = faceNormal[modelsInScene[i].userData.name] // Použij importovanou normálu
+      } else {
+        normala = modelsInScene[i].geometry.faces[0].normal // Použij normálu prvního TRI tvořícího tento polygon
+      }
+      // ----- Vyhledání vzájemně kolmých vektorů
+      let rovX
+      let rovY
+      if (normala.x == 0 && normala.y == 0) { // Budeme prohazovat z souřadnici
+        rovX = { x: Number(normala.z) * (-1), y: 0, z: Number(normala.x) }
+        rovY = { x: 0, y: Number(normala.z) * (-1), z: Number(normala.y) }
+      } else {
+        if (normala.y == 0 && normala.z == 0) { // Budeme prohazovat x souřadnici
+          rovX = { x: Number(normala.y), y: Number(normala.x) * (-1), z: 0 }
+          rovY = { x: Number(normala.z), y: 0, z: Number(normala.x) * (-1) }
+        } else { // Budeme prohazovat y souřadnici
+          rovX = { x: Number(normala.y) * (-1), y: Number(normala.x), z: 0 }
+          rovY = { x: 0, y: Number(normala.z), z: Number(normala.y) * (-1) }
+        }
+      }
+      let quaternion = new THREE.Quaternion();
+      let druheQuaternion = new THREE.Quaternion();
+      const VX = new THREE.Vector3(rovX.x, rovX.y, rovX.z).normalize()
+      const VY = new THREE.Vector3(normala.x, normala.y, normala.z).normalize()
+
+      const VSX = new THREE.Vector3(1, 0, 0)
+      const VSY = new THREE.Vector3(0, 1, 0)
+      quaternion.setFromUnitVectors(VY, VSY);
+      VX.applyQuaternion(quaternion)
+      druheQuaternion.setFromUnitVectors(VX, VSX);
+
+      // Place poly to 2D
+      const poly2D = modelsInScene[i].clone()
+      poly2D.applyQuaternion(quaternion)
+      poly2D.applyQuaternion(druheQuaternion)
+      const shift = new THREE.Vector3(a.x, a.y, a.z)
+      shift.applyQuaternion(quaternion)
+      shift.applyQuaternion(druheQuaternion)
+      poly2D.position.set(-shift.x, 0, -shift.z)
+      scene2D.add(poly2D)
+
+
+      let PlanePoints = [[0, 0]]
+      const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+      let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+      let predchoziB = { x: 0, y: 0 }
+      const VBodu = new THREE.Vector3()
+      for (let l = 1; l < vertsToPlannarize.length; l++) {
+        VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
+        VBodu.applyQuaternion(quaternion)
+        VBodu.applyQuaternion(druheQuaternion)
+        PlanePoints.push([VBodu.x, VBodu.z])
+        predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
+        predchoziB = { x: VBodu.x, y: VBodu.z }
+      }
+      points2D.push(PlanePoints)
+      objects2D.push(poly2D)
+    }
+  }
 }

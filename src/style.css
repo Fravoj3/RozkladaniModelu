@@ -27,7 +27,15 @@ p input{
     background-color: #1f2121;
     /*background: linear-gradient(0deg, rgba(176,176,176,1) 0%, rgba(175,242,255,1) 100%);*/
 }
-
+.model2D {
+  position: absolute;
+  bottom: 0px;
+  left: 0%;
+  width: 50%;
+  height: 400px;
+  background-color: #1f2121;
+  /*background: linear-gradient(0deg, rgba(176,176,176,1) 0%, rgba(175,242,255,1) 100%);*/
+}
 .import {
     position: absolute;
     top: 80px;

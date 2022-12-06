@@ -11,7 +11,22 @@
     <div class="hlavicka">
 
     </div>
-    <div class="import">
+    <div class="container">
+        <div class="model">
+            <canvas class="webgl"></canvas>
+            <div class="controlPanel">
+                <input type="checkbox" value="showGrid" checked>
+                <label> Show grid</label><br>
+                <input type="checkbox" value="showAxisHelper" checked>
+                <label> Show axis helper</label>
+            </div>
+        </div>
+        <div class="resizer" id="dragMe"></div>
+        <div class="model2D">
+            <canvas class="webgl2D"></canvas>
+        </div>
+    </div>
+    <div class="nastaveni">
         <div class="odstavec">
             <div class="hlavicka">Model import</div>
             <input type="file" name="inputfile" id="inputfile" tex class="file" accept=".obj" />
@@ -44,26 +59,13 @@
 
 
         <a id="save">Save</a>
-        
+
         <a id="load">Load</a>
         <input type="file" id="json">
 
 
         <div id="output"></div>
     </div>
-    <div class="controlPanel">
-        <input type="checkbox" value="showGrid" checked>
-        <label> Show grid</label><br>
-        <input type="checkbox" value="showAxisHelper" checked>
-        <label> Show axis helper</label>
-    </div>
-    <div class="model">
-        <canvas class="webgl"></canvas>
-    </div>
-    <div class="model2D">
-        <canvas class="webgl2D"></canvas>
-    </div>
-    <canvas id="">
-    </canvas>
 </body>
+
 </html>

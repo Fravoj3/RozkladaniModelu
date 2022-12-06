@@ -43,16 +43,76 @@ camera.position.z = 5;
 camera.position.y = 3;
 scene.add(camera);
 // Lights
-const color = 0xffffff;
+/*const color = 0xffffff;
 const intensity = 1;
 const light = new THREE.DirectionalLight(color, intensity);
 light.position.set(50, 100, 50);
 scene.add(light);
 const light2 = new THREE.DirectionalLight(color, intensity);
-light2.position.set(-50, -100,-80);
+light2.position.set(-50, -100, -80);
 scene.add(light2);
 const ambLight = new THREE.AmbientLight(0x404040, 4); // soft white light
-scene.add(ambLight);
+scene.add(ambLight);*/
+function createLight(){
+  let ambientLight = new THREE.AmbientLight(0x111111, 4);
+  ambientLight.castShadow = true;
+  let lights = [];
+  scene.add(ambientLight) 
+  let directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+  
+  directionalLight.position.set(4, 18, 3);
+  directionalLight.target.position.set(0, 7, 0);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.camera.top = 20;
+  directionalLight.shadow.camera.right = 20;
+  directionalLight.shadow.camera.bottom = -20;
+  directionalLight.shadow.camera.left = -20;
+  directionalLight.shadow.camera.far = 32;
+  scene.add(directionalLight)
+  lights.push(directionalLight)
+
+  directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  directionalLight.position.set(-10, -18, 8);
+  directionalLight.target.position.set(0, 7, 0);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.camera.top = -20;
+  directionalLight.shadow.camera.right = -20;
+  directionalLight.shadow.camera.bottom = 20;
+  directionalLight.shadow.camera.left = 20;
+  directionalLight.shadow.camera.far = 32;
+  scene.add(directionalLight)
+  lights.push(directionalLight)
+
+  directionalLight = new THREE.DirectionalLight(0xffffff, 0.2);
+  directionalLight.position.set(-10, 8, -13);
+  directionalLight.target.position.set(0, 7, 0);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.camera.top = -20;
+  directionalLight.shadow.camera.right = -20;
+  directionalLight.shadow.camera.bottom = 20;
+  directionalLight.shadow.camera.left = 20;
+  directionalLight.shadow.camera.far = 32;
+  scene.add(directionalLight)
+  lights.push(directionalLight)
+
+  return lights
+}
+let mainDirLights = createLight();
+function lightMainDirLights(state){
+  let values = [0.7, 0.4, 0.2];
+  if(!state){
+    values = [0, 0, 0];
+  }
+  mainDirLights[0].intensity = values[0]
+  mainDirLights[1].intensity = values[1]
+  mainDirLights[2].intensity = values[2]
+}
 // Renderer
 const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
@@ -75,6 +135,7 @@ const scene2D = new THREE.Scene();
 const camera2D = new THREE.OrthographicCamera(sizes2D.width / -zoom2D, sizes2D.width / zoom2D, sizes2D.height / zoom2D, sizes2D.height / -zoom2D, 0.1, 1000);
 camera2D.position.y = 10;
 scene2D.add(camera2D);
+const ambLight = new THREE.AmbientLight(0x404040, 4); // soft white light
 scene2D.add(ambLight);
 // Renderer
 const renderer2D = new THREE.WebGLRenderer({
@@ -99,7 +160,6 @@ cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE;
   renderer.render(scene, camera)
   renderer2D.render(scene2D, camera2D)
 })();
-
 // --------------------------------------        Variables        -----------------------------------
 let interakceSModelem = true; // je povoleno uživateli interagovat s modelem?
 let zobrazenaNerovinost = false; // Jsme v režimu vizualizace nrovnosti?
@@ -126,6 +186,9 @@ let obrys = { xMin: 0, xMax: 0, yMin: 0, yMax: 0, zMin: 0, zMax: 0, nove: 0 };
 let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide })
 // --------------------------------------        Listeners        -----------------------------------
 window.addEventListener("resize", event => {
+  resizeThree();
+});
+function resizeThree(){
   parentSize = parent.getBoundingClientRect();
   sizes.width = parentSize.width;
   sizes.height = parentSize.height;
@@ -146,7 +209,67 @@ window.addEventListener("resize", event => {
 
   renderer2D.setSize(sizes2D.width, sizes2D.height);
   renderer2D.pixelRatio = Math.min(2, window.devicePixelRatio);
-});
+}
+// UI resize
+function resizeViewer() {
+  const resizer = document.getElementById('dragMe');
+  const leftSide = resizer.previousElementSibling;
+  const rightSide = resizer.nextElementSibling;
+
+  // The current position of mouse
+  let x = 0;
+  let y = 0;
+  let leftWidth = 0;
+
+  // Handle the mousedown event
+  // that's triggered when user drags the resizer
+  const mouseDownHandler = function (e) {
+    // Get the current mouse position
+    x = e.clientX;
+    y = e.clientY;
+    leftWidth = leftSide.getBoundingClientRect().width;
+    resizeThree()
+    // Attach the listeners to `document`
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+  };
+
+  const mouseMoveHandler = function (e) {
+    // How far the mouse has been moved
+    const dx = e.clientX - x;
+    const dy = e.clientY - y;
+
+    const newLeftWidth = ((leftWidth + dx) * 100) / resizer.parentNode.getBoundingClientRect().width;
+    leftSide.style.width = `${newLeftWidth}%`;
+    resizer.style.cursor = 'col-resize';
+    document.body.style.cursor = 'col-resize';
+
+    leftSide.style.userSelect = 'none';
+    leftSide.style.pointerEvents = 'none';
+
+    rightSide.style.userSelect = 'none';
+    rightSide.style.pointerEvents = 'none';
+    resizeThree()
+  };
+
+  const mouseUpHandler = function () {
+    resizer.style.removeProperty('cursor');
+    document.body.style.removeProperty('cursor');
+    leftSide.style.removeProperty('user-select');
+    leftSide.style.removeProperty('pointer-events');
+
+    rightSide.style.removeProperty('user-select');
+    rightSide.style.removeProperty('pointer-events');
+
+    // Remove the handlers of `mousemove` and `mouseup`
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+  };
+
+  // Attach the handler
+  resizer.addEventListener('mousedown', mouseDownHandler);
+}
+resizeViewer()
 // On mouse move select
 // demo2s.com/javascript/javascript-three-js-when-mouseover-hover-on-object-the-mouse-cursor.html
 document.addEventListener('mousemove', event => {
@@ -229,7 +352,7 @@ renderer.domElement.addEventListener('mousedown', event => {
 
       // Spočítání rovinnosti polygonu
       let teziste = { x: 0, y: 0, z: 0, vertCount: 0 }
-      //console.log(CursorPointing.object.userData.name)
+      console.log(CursorPointing.object)
       const currPoly = faces[CursorPointing.object.userData.name]
       let a = { x: 0, y: 0, z: 0, nastaven: false }
       let u = { x: 0, y: 0, z: 0, nastaven: false }
@@ -493,6 +616,7 @@ document.getElementById('userImage').addEventListener('change', function (e) {
 $('#zobrazNerovinnost').click(function () {
   if (zobrazenaNerovinost == true) {
     zobrazenaNerovinost = false
+    lightMainDirLights(true)
     $('#zobrazNerovinnost').css("background-color", "#82959b")
     for (let i = 0; i < modelsInScene.length; i++) {
       modelsInScene[i].material.color.set("#d9dadb");
@@ -501,6 +625,7 @@ $('#zobrazNerovinnost').click(function () {
   } else {
     zobrazenaNerovinost = true
     interakceSModelem = false
+    lightMainDirLights(false)
     hideTexture()
     $('#zobrazNerovinnost').css("background-color", "#087ca7")
     let nejNepresnost = 0;
@@ -733,7 +858,7 @@ document.getElementById("inputfile").addEventListener("change", function () {
         }
         polys.push(Object.assign({}, exportPolys))
         const modelMash = new THREE.Mesh(
-          model, new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));
+          model, new THREE.MeshStandardMaterial({ color: "#d9dadb", side: THREE.DoubleSide }));
         modelMash.userData.name = faces.length - 1;
         scene.add(modelMash);
         modelsInScene.push(modelMash);
@@ -800,11 +925,13 @@ function resetScene() {
   vertices = [];
   polys = []
   UVCoordinates = []
-  verticesVectors = [];
-  faces = [];
-  modelsInScene = [];
+  verticesVectors = []
+  faces = []
+  modelsInScene = []
   objects2D = []
   points2D = []
+  objectsIn2DScene = []
+  koeficientVel = 1
   hideTexture()
   for (let i = scene.children.length - 1; i >= 0; i--) {
     if (scene.children[i].type === "Mesh") {
@@ -942,7 +1069,9 @@ function updateHelpers() {
 }
 let points2D = []
 let objects2D = []
+let objectsIn2DScene = []
 function unwrap() {
+  let unplaced = []
   for (let i = 0; i < modelsInScene.length; i++) {
     const currPoly = faces[modelsInScene[i].userData.name]
     let a = { x: 0, y: 0, z: 0, nastaven: false }
@@ -1023,24 +1152,62 @@ function unwrap() {
       shift.applyQuaternion(quaternion)
       shift.applyQuaternion(druheQuaternion)
       poly2D.position.set(-shift.x, 0, -shift.z)
-      scene2D.add(poly2D)
+      //scene2D.add(poly2D)
 
 
-      let PlanePoints = [[0, 0]]
-      const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
-      let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
-      let predchoziB = { x: 0, y: 0 }
-      const VBodu = new THREE.Vector3()
-      for (let l = 1; l < vertsToPlannarize.length; l++) {
-        VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
-        VBodu.applyQuaternion(quaternion)
-        VBodu.applyQuaternion(druheQuaternion)
-        PlanePoints.push([VBodu.x, VBodu.z])
-        predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
-        predchoziB = { x: VBodu.x, y: VBodu.z }
-      }
-      points2D.push(PlanePoints)
+      /* let PlanePoints = [[0, 0]]
+       const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+       let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
+       let predchoziB = { x: 0, y: 0 }
+       const VBodu = new THREE.Vector3()
+       for (let l = 1; l < vertsToPlannarize.length; l++) {
+         VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
+         VBodu.applyQuaternion(quaternion)
+         VBodu.applyQuaternion(druheQuaternion)
+         PlanePoints.push([VBodu.x, VBodu.z])
+         predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
+         predchoziB = { x: VBodu.x, y: VBodu.z }
+       }
+       points2D.push(PlanePoints)*/
       objects2D.push(poly2D)
+      unplaced.push(poly2D)
+    }
+  }
+  let hrany = []
+  let fronstaStredu = []
+  if (objects2D.length > 0) {
+    scene2D.add(objects2D[0])
+    objectsIn2DScene.push(objects2D[0])
+    unplaced.splice(0, 1)
+    let stredID = objects2D[0].userData.name
+    while (unplaced.length != 0) {
+      let VID1 = -1
+      let VID2 = -1
+
+      for (let l = 0; l < unplaced.length; l++) {
+        let idObj2 = -1
+        for (let k = 0; k < faces[stredID].length; k++) {
+          const IdVrcholu = faces[stredID][k]
+          for (let m = 0; m < faces[unplaced[l].userData.name].length; m++) {
+            if (IdVrcholu == faces[unplaced[l].userData.name][m]) {
+              if (VID1 == -1) {
+                VID1 = IdVrcholu
+                break
+              }
+              if (VID2 == -1) {
+                VID2 = IdVrcholu
+                idObj2 = unplaced[l].userData.name
+                break
+              }
+            }
+          }
+          if (VID2 != -1) {
+            // Jsou sousedé
+            hrany.push({ idObj1: stredID, idObj2: idObj2, vertId1: VID1, vertId2: VID2 })
+            break
+          }
+        }
+      }
     }
   }
 }

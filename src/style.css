@@ -27,7 +27,7 @@ p input {
   left: 0;
   /*border: 1px solid #cbd5e0;*/
   height: calc(100% - 150px);
-  width: calc(100% - 400px);
+  width: calc(100% - 350px);
 }
 
 .model {
@@ -56,7 +56,7 @@ p input {
   position: absolute;
   top: 80px;
   right: 0px;
-  width: 400px;
+  width: 350px;
   height: calc(100% - 150px);
   overflow-y: scroll;
   background-color: #e7e7e7;

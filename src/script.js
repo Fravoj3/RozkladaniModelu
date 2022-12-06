@@ -42,24 +42,14 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.z = 5;
 camera.position.y = 3;
 scene.add(camera);
-// Lights
-/*const color = 0xffffff;
-const intensity = 1;
-const light = new THREE.DirectionalLight(color, intensity);
-light.position.set(50, 100, 50);
-scene.add(light);
-const light2 = new THREE.DirectionalLight(color, intensity);
-light2.position.set(-50, -100, -80);
-scene.add(light2);
-const ambLight = new THREE.AmbientLight(0x404040, 4); // soft white light
-scene.add(ambLight);*/
-function createLight(){
+function createLight() {
   let ambientLight = new THREE.AmbientLight(0x111111, 4);
   ambientLight.castShadow = true;
   let lights = [];
-  scene.add(ambientLight) 
+  scene.add(ambientLight)
+  lights.push(ambientLight)
   let directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
-  
+
   directionalLight.position.set(4, 18, 3);
   directionalLight.target.position.set(0, 7, 0);
   directionalLight.castShadow = true;
@@ -104,14 +94,15 @@ function createLight(){
   return lights
 }
 let mainDirLights = createLight();
-function lightMainDirLights(state){
-  let values = [0.7, 0.4, 0.2];
-  if(!state){
-    values = [0, 0, 0];
+function lightMainDirLights(state) {
+  let values = [4, 0.7, 0.4, 0.2];
+  if (!state) {
+    values = [9, 0, 0, 0];
   }
   mainDirLights[0].intensity = values[0]
   mainDirLights[1].intensity = values[1]
   mainDirLights[2].intensity = values[2]
+  mainDirLights[3].intensity = values[3]
 }
 // Renderer
 const renderer = new THREE.WebGLRenderer({
@@ -188,7 +179,7 @@ let modelMaterial = new THREE.MeshPhongMaterial({ color: "#d9dadb", side: THREE.
 window.addEventListener("resize", event => {
   resizeThree();
 });
-function resizeThree(){
+function resizeThree() {
   parentSize = parent.getBoundingClientRect();
   sizes.width = parentSize.width;
   sizes.height = parentSize.height;
@@ -1063,6 +1054,7 @@ function readTextFile(file, callback) {
   }
   rawFile.send(null);
 }
+
 function updateHelpers() {
   gridHelper.position.y = obrys.yMin - 0.01;
   axisHelper.position.y = obrys.yMin;
@@ -1071,15 +1063,18 @@ let points2D = []
 let objects2D = []
 let objectsIn2DScene = []
 function unwrap() {
+  // Rozbalování povrchu
   let unplaced = []
+  // Získání otočených objektů polygonů v poýadované rovině
   for (let i = 0; i < modelsInScene.length; i++) {
+    // Získání původních polygonů (i n-gony)
     const currPoly = faces[modelsInScene[i].userData.name]
     let a = { x: 0, y: 0, z: 0, nastaven: false }
     let u = { x: 0, y: 0, z: 0, nastaven: false }
     let v = { x: 0, y: 0, z: 0, nastaven: false }
     let n = { x: 0, y: 0, z: 0, nastaven: false }
     let vertsToPlannarize = []
-    for (const vert of currPoly) {
+    for (let vert of currPoly) {
       let x = Number(vertices[vert - 1].x)
       let y = Number(vertices[vert - 1].y)
       let z = Number(vertices[vert - 1].z)
@@ -1174,39 +1169,53 @@ function unwrap() {
     }
   }
   let hrany = []
-  let fronstaStredu = []
+  let frontaStredu = []
   if (objects2D.length > 0) {
+    // Přidáme první polygon, který bude sloužit jako střed
     scene2D.add(objects2D[0])
     objectsIn2DScene.push(objects2D[0])
-    unplaced.splice(0, 1)
-    let stredID = objects2D[0].userData.name
-    while (unplaced.length != 0) {
-      let VID1 = -1
-      let VID2 = -1
+    unplaced.shift()
+    frontaStredu.push(objects2D[0].userData.name)
+    // Opakuj dokud zbývají neumístěné polygony
 
-      for (let l = 0; l < unplaced.length; l++) {
-        let idObj2 = -1
-        for (let k = 0; k < faces[stredID].length; k++) {
-          const IdVrcholu = faces[stredID][k]
-          for (let m = 0; m < faces[unplaced[l].userData.name].length; m++) {
-            if (IdVrcholu == faces[unplaced[l].userData.name][m]) {
-              if (VID1 == -1) {
-                VID1 = IdVrcholu
-                break
-              }
-              if (VID2 == -1) {
-                VID2 = IdVrcholu
-                idObj2 = unplaced[l].userData.name
-                break
-              }
+    let VID1 = -1
+    let VID2 = -1
+    /*
+    Projdi všechny neumísěné polygony a u kaýdého z nich zkontroluj, 
+    jestli nesdílí hranu s polygonem, který považujeme za středový.
+
+    Faces => [id of face][list of verts]
+    */
+    for (let l = 0; l < unplaced.length; l++) {
+
+      let idObj2 = -1
+      for (let k = 0; k < faces[frontaStredu[0]].length; k++) {
+        const IdVrcholu = faces[frontaStredu[0]][k]
+        for (let m = 0; m < faces[unplaced[l].userData.name].length; m++) {
+          if (IdVrcholu == faces[unplaced[l].userData.name][m]) {
+            if (VID1 == -1) {
+              VID1 = IdVrcholu
+              break
+            }
+            if (VID2 == -1) {
+              VID2 = IdVrcholu
+              idObj2 = unplaced[l].userData.name
+              frontaStredu.push(unplaced[l].userData.name)
+              unplaced.splice(l, 1)
+              break
             }
           }
-          if (VID2 != -1) {
-            // Jsou sousedé
-            hrany.push({ idObj1: stredID, idObj2: idObj2, vertId1: VID1, vertId2: VID2 })
-            break
-          }
         }
+        if (VID2 != -1) {
+          // Jsou sousedé
+          hrany.push({ idObj1: frontaStredu[0], idObj2: idObj2, vertId1: VID1, vertId2: VID2 })
+          break
+        }
+      }
+      frontaStredu.shift()
+      if (frontaStredu.length == 0 && unplaced.length > 0) {
+        console.log("Model obsahuje více nespojených modelů")
+        frontaStredu.push(unplaced[0].userData.name)
       }
     }
   }

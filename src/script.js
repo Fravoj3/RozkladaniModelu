@@ -140,7 +140,7 @@ renderer2D.render(scene2D, camera2D)
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
 const cameraControls2D = new CameraControls(camera2D, renderer2D.domElement);
-cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE;
+cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE; // Zablokování rotace v 2D zobrazení
 (function update() {
   // snip
   const delta = clock.getDelta();
@@ -156,6 +156,7 @@ let interakceSModelem = true; // je povoleno uživateli interagovat s modelem?
 let zobrazenaNerovinost = false; // Jsme v režimu vizualizace nrovnosti?
 let zobrazTexturu = false // Jsme v režimu zobrazování textury na modelu? 
 let pointedObjects = []; // kurzorem právě vybrané polygony
+
 let CursorPointing = { x: 0, y: 0, z: 0, isPointing: false, object: null }
 let neinteraguje = true; // pokud uživatel právě neinteraguje s modelem
 
@@ -302,7 +303,7 @@ document.addEventListener('mousemove', event => {
         mouse.x = ((event.clientX - parentSize2D.left) / parentSize2D.width) * 2 - 1;
         mouse.y = - ((event.clientY - parentSize2D.top) / parentSize2D.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera2D);
-        var intersects = raycaster.intersectObjects(objects2D);
+        var intersects = raycaster.intersectObjects(objectsIn2DScene);
         if (intersects.length > 0) {
           CursorPointing.x = intersects[0].point.x
           CursorPointing.y = intersects[0].point.y
@@ -919,9 +920,6 @@ function resetScene() {
   verticesVectors = []
   faces = []
   modelsInScene = []
-  objects2D = []
-  points2D = []
-  objectsIn2DScene = []
   koeficientVel = 1
   hideTexture()
   for (let i = scene.children.length - 1; i >= 0; i--) {
@@ -929,6 +927,12 @@ function resetScene() {
       scene.remove(scene.children[i]);
     }
   }
+  reset2DScene()
+}
+function reset2DScene() {
+  objects2D = []
+  points2D = []
+  objectsIn2DScene = []
   for (let i = scene2D.children.length - 1; i >= 0; i--) {
     if (scene2D.children[i].type === "Mesh") {
       scene2D.remove(scene2D.children[i]);
@@ -1063,13 +1067,14 @@ let points2D = []
 let objects2D = []
 let objectsIn2DScene = []
 function unwrap() {
+  reset2DScene()
   // Rozbalování povrchu
   let unplaced = []
   // Získání otočených objektů polygonů v poýadované rovině
   for (let i = 0; i < modelsInScene.length; i++) {
     // Získání původních polygonů (i n-gony)
     const currPoly = faces[modelsInScene[i].userData.name]
-    let a = { x: 0, y: 0, z: 0, nastaven: false }
+    let a = { x: 0, y: 0, z: 0, nastaven: false, index: 0 }
     let u = { x: 0, y: 0, z: 0, nastaven: false }
     let v = { x: 0, y: 0, z: 0, nastaven: false }
     let n = { x: 0, y: 0, z: 0, nastaven: false }
@@ -1083,6 +1088,7 @@ function unwrap() {
         a.x = x
         a.y = y
         a.z = z
+        a.index = vert - 1
         a.nastaven = true
         continue
       }
@@ -1140,14 +1146,13 @@ function unwrap() {
       druheQuaternion.setFromUnitVectors(VX, VSX);
 
       // Place poly to 2D
-      const poly2D = modelsInScene[i].clone()
+      let poly2D = modelsInScene[i].clone()
       poly2D.applyQuaternion(quaternion)
       poly2D.applyQuaternion(druheQuaternion)
-      const shift = new THREE.Vector3(a.x, a.y, a.z)
-      shift.applyQuaternion(quaternion)
-      shift.applyQuaternion(druheQuaternion)
-      poly2D.position.set(-shift.x, 0, -shift.z)
-      //scene2D.add(poly2D)
+      poly2D.updateMatrixWorld()
+      let APos = poly2D.geometry.vertices[a.index].clone()
+      poly2D.localToWorld(APos)
+      poly2D.position.add(APos.multiplyScalar(-1))
 
 
       /* let PlanePoints = [[0, 0]]
@@ -1171,6 +1176,67 @@ function unwrap() {
   let hrany = []
   let frontaStredu = []
   if (objects2D.length > 0) {
+    let pivot = [unplaced[0].userData.name]
+    scene2D.add(objects2D[0])
+    objectsIn2DScene.push(objects2D[0])
+    unplaced.splice(0, 1)
+
+    /*
+        Projdi všechny neumísěné polygony a u kaýdého z nich zkontroluj, 
+        jestli nesdílí hranu s polygonem, který považujeme za středový.
+    
+        Faces => [id of face][list of verts]
+        */
+    let zOffset = 0;
+    while (unplaced != 0) {
+      if (pivot.length == 0) {
+        console.log("nový střed ketrý je mimo")
+        // Nacházíme nový střed, který je potřeba přemístit
+        pivot.push(unplaced[0].userData.name)
+        unplaced[0].position.add(new THREE.Vector3(0, 0, zOffset))
+        zOffset += 5;
+        objectsIn2DScene.push(unplaced[0])
+        scene2D.add(unplaced[0])
+        unplaced.shift()
+      }
+
+      for (let i = 0; i < unplaced.length; i++) {
+        let Vert1 = -1
+        let Vert2 = -1
+        let VIdP = 0
+        let VIdU = 0
+        let VIdP2 = 0
+        let VIdU2 = 0
+        for (let j = 0; j < faces[pivot[0]].length; j++) {
+          for (let k = 0; k < faces[unplaced[i].userData.name].length; k++) {
+            if (faces[pivot[0]][j] == faces[unplaced[i].userData.name][k]) {
+              if (Vert1 == -1) {
+                Vert1 = faces[pivot[0]][j]
+                VIdP = j;
+                VIdU = k;
+              } else {
+                Vert2 = faces[pivot[0]][j]
+                VIdP = j;
+                VIdU = k;
+                break
+              }
+            }
+          }
+          if (Vert2 != -1) {
+            pivot.push(unplaced[i].userData.name)
+            alignObject2D(unplaced[i], pivot[0], Vert1, Vert2)
+            unplaced.splice(i, 1)
+            i = i - 1
+            break
+          }
+        }
+      }
+      pivot.shift()
+    }
+
+
+
+    /*
     // Přidáme první polygon, který bude sloužit jako střed
     scene2D.add(objects2D[0])
     objectsIn2DScene.push(objects2D[0])
@@ -1180,12 +1246,7 @@ function unwrap() {
 
     let VID1 = -1
     let VID2 = -1
-    /*
-    Projdi všechny neumísěné polygony a u kaýdého z nich zkontroluj, 
-    jestli nesdílí hranu s polygonem, který považujeme za středový.
 
-    Faces => [id of face][list of verts]
-    */
     for (let l = 0; l < unplaced.length; l++) {
 
       let idObj2 = -1
@@ -1217,6 +1278,47 @@ function unwrap() {
         console.log("Model obsahuje více nespojených modelů")
         frontaStredu.push(unplaced[0].userData.name)
       }
+    }*/
+  }
+}
+function alignObject2D(obj, pivotName, Vert1, Vert2) {
+  let pivot;
+  for (let i = 0; i < objectsIn2DScene.length; i++) {
+    if (objectsIn2DScene[i].userData.name == pivotName) {
+      pivot = objectsIn2DScene[i]
+      break
     }
   }
+  obj.updateMatrixWorld();
+  pivot.updateMatrixWorld();
+  let pa = pivot.geometry.vertices[Vert1 - 1].clone()
+  let oa = obj.geometry.vertices[Vert1 - 1].clone()
+  let pb = pivot.geometry.vertices[Vert2 - 1].clone()
+  let ob = obj.geometry.vertices[Vert2 - 1].clone()
+  pivot.localToWorld(pa)
+  obj.localToWorld(oa)
+  pivot.localToWorld(pb)
+  obj.localToWorld(ob)
+
+  /*console.log(pa)
+  console.log(oa)
+  console.log(pb)
+  console.log(ob)
+  console.log("-------------")*/
+  let u = new THREE.Vector3(pb.x - pa.x, 0, pb.z - pa.z)
+  let v = new THREE.Vector3(ob.x - oa.x, 0, ob.z - oa.z)
+  u = u.normalize()
+  v = v.normalize()
+  let quat = new THREE.Quaternion().setFromUnitVectors(v, u)
+  const worldNormal = new THREE.Vector3(0, 1, 0)
+  obj.applyQuaternion(quat)
+  obj.updateMatrixWorld();
+  oa = obj.geometry.vertices[Vert1 - 1].clone()
+  obj.localToWorld(oa)
+
+  // Move to connect with pivot after rotation
+  let mv = new THREE.Vector3(oa.x - pa.x, 0, oa.z - pa.z);
+  obj.position.add(mv.multiplyScalar(-1))
+  scene2D.add(obj)
+  objectsIn2DScene.push(obj)
 }

@@ -25,7 +25,11 @@ h1{
   top: 0px;
   left: 0px;
 }
-
+.webgl2D {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
 .container {
   position: absolute;
   display: flex;

@@ -1,99 +1,112 @@
+import "./style.css";
+// ThreeJs related imports
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import "./style.css";
-import nerdamer from "nerdamer";
-import gsap from "gsap";
-import * as mathjs from 'mathjs'
 import CameraControls from 'camera-controls';
-import matrix from 'matrix-js';
-import structuredClone from 'structured-clone';
-import { Camera } from "three";
 CameraControls.install({ THREE: THREE });
+// Setup JQuerry
 var $ = require('jquery');
 window.jQuery = $;
 window.$ = $;
-require('nerdamer/Solve');
+// PixiJs
+import * as PIXI from 'pixi.js'
+import { Viewport } from 'pixi-viewport'
 
+// ---------------------      3D View setup         ---------------------
+// Variables
+let scene, canvas, parent, parentSize, sizes, axisHelper, gridHelper, camera, mainDirLights, renderer, cameraControls;
+function setup3DWindow() {
+  canvas = document.querySelector("canvas.webgl");
+  parent = document.querySelector(".model");
+  parentSize = parent.getBoundingClientRect();
+  sizes = {
+    width: parentSize.width,
+    height: parentSize.height
+  };
 
-// --------------------------------------        Nastavení 3D scény       -----------------------------------
-const canvas = document.querySelector("canvas.webgl");
-const parent = document.querySelector(".model");
-var parentSize = parent.getBoundingClientRect();
-const sizes = {
-  width: parentSize.width,
-  height: parentSize.height
-};
-// Scene
-const scene = new THREE.Scene();
-//axis helper + geid helper
-const axisHelper = new THREE.AxesHelper(5);
-scene.add(axisHelper);
-const gridHelper = new THREE.GridHelper(100, 100, 0x0000ff, 0x808080);
-gridHelper.position.y = -0.01;
-gridHelper.position.x = 0;
-scene.add(gridHelper);
-// Camera
-const camera = new THREE.PerspectiveCamera(
-  75,
-  sizes.width / sizes.height,
-  0.1,
-  1000
-);
-camera.position.z = 5;
-camera.position.y = 3;
-scene.add(camera);
-function createLight() {
-  let ambientLight = new THREE.AmbientLight(0x111111, 4);
-  ambientLight.castShadow = true;
-  let lights = [];
-  scene.add(ambientLight)
-  lights.push(ambientLight)
-  let directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+  scene = new THREE.Scene();
+  //axis helper + geid helper
+  axisHelper = new THREE.AxesHelper(5);
+  gridHelper = new THREE.GridHelper(100, 100, 0x0000ff, 0x808080);
+  gridHelper.position.y = -0.01;
+  gridHelper.position.x = 0;
+  scene.add(axisHelper);
+  scene.add(gridHelper);
+  // Camera
+  camera = new THREE.PerspectiveCamera(
+    75,
+    sizes.width / sizes.height,
+    0.1,
+    1000
+  );
+  camera.position.z = 5;
+  camera.position.y = 3;
+  scene.add(camera);
+  function createLight() {
+    let ambientLight = new THREE.AmbientLight(0x111111, 4);
+    ambientLight.castShadow = true;
+    let lights = [];
+    scene.add(ambientLight)
+    lights.push(ambientLight)
+    let directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
 
-  directionalLight.position.set(4, 18, 3);
-  directionalLight.target.position.set(0, 7, 0);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
-  directionalLight.shadow.camera.top = 20;
-  directionalLight.shadow.camera.right = 20;
-  directionalLight.shadow.camera.bottom = -20;
-  directionalLight.shadow.camera.left = -20;
-  directionalLight.shadow.camera.far = 32;
-  scene.add(directionalLight)
-  lights.push(directionalLight)
+    directionalLight.position.set(4, 18, 3);
+    directionalLight.target.position.set(0, 7, 0);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.top = 20;
+    directionalLight.shadow.camera.right = 20;
+    directionalLight.shadow.camera.bottom = -20;
+    directionalLight.shadow.camera.left = -20;
+    directionalLight.shadow.camera.far = 32;
+    scene.add(directionalLight)
+    lights.push(directionalLight)
 
-  directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  directionalLight.position.set(-10, -18, 8);
-  directionalLight.target.position.set(0, 7, 0);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
-  directionalLight.shadow.camera.top = -20;
-  directionalLight.shadow.camera.right = -20;
-  directionalLight.shadow.camera.bottom = 20;
-  directionalLight.shadow.camera.left = 20;
-  directionalLight.shadow.camera.far = 32;
-  scene.add(directionalLight)
-  lights.push(directionalLight)
+    directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(-10, -18, 8);
+    directionalLight.target.position.set(0, 7, 0);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.top = -20;
+    directionalLight.shadow.camera.right = -20;
+    directionalLight.shadow.camera.bottom = 20;
+    directionalLight.shadow.camera.left = 20;
+    directionalLight.shadow.camera.far = 32;
+    scene.add(directionalLight)
+    lights.push(directionalLight)
 
-  directionalLight = new THREE.DirectionalLight(0xffffff, 0.2);
-  directionalLight.position.set(-10, 8, -13);
-  directionalLight.target.position.set(0, 7, 0);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
-  directionalLight.shadow.camera.top = -20;
-  directionalLight.shadow.camera.right = -20;
-  directionalLight.shadow.camera.bottom = 20;
-  directionalLight.shadow.camera.left = 20;
-  directionalLight.shadow.camera.far = 32;
-  scene.add(directionalLight)
-  lights.push(directionalLight)
+    directionalLight = new THREE.DirectionalLight(0xffffff, 0.2);
+    directionalLight.position.set(-10, 8, -13);
+    directionalLight.target.position.set(0, 7, 0);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.top = -20;
+    directionalLight.shadow.camera.right = -20;
+    directionalLight.shadow.camera.bottom = 20;
+    directionalLight.shadow.camera.left = 20;
+    directionalLight.shadow.camera.far = 32;
+    scene.add(directionalLight)
+    lights.push(directionalLight)
 
-  return lights
+    return lights
+  }
+  mainDirLights = createLight();
+  // Renderer
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: true,
+    alpha: true
+  });
+  renderer.setSize(sizes.width, sizes.height);
+  // Camera Controlls
+  cameraControls = new CameraControls(camera, renderer.domElement);
+
+  renderer.render(scene, camera)
 }
-let mainDirLights = createLight();
+setup3DWindow()
 function lightMainDirLights(state) {
   let values = [4, 0.7, 0.4, 0.2];
   if (!state) {
@@ -104,16 +117,30 @@ function lightMainDirLights(state) {
   mainDirLights[2].intensity = values[2]
   mainDirLights[3].intensity = values[3]
 }
-// Renderer
-const renderer = new THREE.WebGLRenderer({
-  canvas: canvas,
-  antialias: true,
-  alpha: true
-});
-renderer.setSize(sizes.width, sizes.height);
-renderer.render(scene, camera)
+
+// ---------------------      2D View setup         ---------------------
+let canvas2D, scene2D, parent2D, parentSize2D, sizes2D
+function setup2DWindow() {
+  canvas2D = document.querySelector("canvas.webgl2D");
+  parent2D = document.querySelector(".model2D");
+  parentSize2D = parent2D.getBoundingClientRect();
+  sizes2D = {
+    width: parentSize2D.width,
+    height: parentSize2D.height
+  };
+
+  let app = new PIXI.Application({ width: sizes2D.width, height: sizes2D.height });
+  document.parentSize2D.appendChild(app.view);
+  let frame = new PIXI.Graphics();
+  frame.beginFill(0x666666);
+  frame.lineStyle({ color: 0xffffff, width: 4, alignment: 0 });
+  frame.drawRect(0, 0, 208, 208);
+  frame.position.set(320 - 104, 180 - 104);
+  app.stage.addChild(frame);
+}
+setup2DWindow()
 //--------------------------------------     Set 2D Scene    -----------------------------------------
-const canvas2D = document.querySelector("canvas.webgl2D");
+/*const canvas2D = document.querySelector("canvas.webgl2D");
 const parent2D = document.querySelector(".model2D");
 var parentSize2D = parent2D.getBoundingClientRect();
 const sizes2D = {
@@ -140,16 +167,15 @@ renderer2D.render(scene2D, camera2D)
 const clock = new THREE.Clock();
 const cameraControls = new CameraControls(camera, renderer.domElement);
 const cameraControls2D = new CameraControls(camera2D, renderer2D.domElement);
-cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE; // Zablokování rotace v 2D zobrazení
+cameraControls2D.mouseButtons.left = CameraControls.ACTION.NONE; // Zablokování rotace v 2D zobrazení*/
+const clock = new THREE.Clock();
 (function update() {
   // snip
   const delta = clock.getDelta();
   const hasControlsUpdated = cameraControls.update(delta)
-  const hasControlsUpdated2D = cameraControls2D.update(delta)
   requestAnimationFrame(update)
   // you can skip this condition to render though
   renderer.render(scene, camera)
-  renderer2D.render(scene2D, camera2D)
 })();
 // --------------------------------------        Variables        -----------------------------------
 let interakceSModelem = true; // je povoleno uživateli interagovat s modelem?
@@ -189,18 +215,6 @@ function resizeThree() {
 
   renderer.setSize(sizes.width, sizes.height);
   renderer.pixelRatio = Math.min(2, window.devicePixelRatio);
-
-  parentSize2D = parent2D.getBoundingClientRect();
-  sizes2D.width = parentSize2D.width;
-  sizes2D.height = parentSize2D.height;
-  camera2D.left = sizes2D.width / -zoom2D;
-  camera2D.right = sizes2D.width / zoom2D;
-  camera2D.top = sizes2D.height / zoom2D;
-  camera2D.bottom = sizes2D.height / -zoom2D;
-  camera2D.updateProjectionMatrix();
-
-  renderer2D.setSize(sizes2D.width, sizes2D.height);
-  renderer2D.pixelRatio = Math.min(2, window.devicePixelRatio);
 }
 // UI resize
 function resizeViewer() {
@@ -299,28 +313,7 @@ document.addEventListener('mousemove', event => {
     // Interakce v 2D okně
     if (event.clientX > parentSize2D.left && event.clientX < parentSize2D.left + parentSize2D.width) {
       if (event.clientY > parentSize2D.top && event.clientY < parentSize2D.top + parentSize2D.height) {
-        var mouse = new THREE.Vector2();
-        mouse.x = ((event.clientX - parentSize2D.left) / parentSize2D.width) * 2 - 1;
-        mouse.y = - ((event.clientY - parentSize2D.top) / parentSize2D.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera2D);
-        var intersects = raycaster.intersectObjects(objectsIn2DScene);
-        if (intersects.length > 0) {
-          CursorPointing.x = intersects[0].point.x
-          CursorPointing.y = intersects[0].point.y
-          CursorPointing.z = intersects[0].point.z
-          CursorPointing.isPointing = true;
-          CursorPointing.object = intersects[0].object;
-          neinteraguje = false;
-          if (!event.ctrlKey) {// Nechceme zanechávat stopu
-            for (let i = 0; i < pointedObjects.length; i++) {
-              pointedObjects[i].material.color.set("#d9dadb");
-            }
-            pointedObjects = [];
-          }
-          intersects[0].object.material.color.set("#d3791a")
-          pointedObjects.push(intersects[0].object);
-          //$('html,body').css('cursor', 'pointer'); - způsobovalo problémy s výkonem
-        }
+        //...
       }
     }
     if (neinteraguje) {
@@ -931,7 +924,6 @@ function resetScene() {
 }
 function reset2DScene() {
   objects2D = []
-  points2D = []
   objectsIn2DScene = []
   for (let i = scene2D.children.length - 1; i >= 0; i--) {
     if (scene2D.children[i].type === "Mesh") {
@@ -1063,7 +1055,6 @@ function updateHelpers() {
   gridHelper.position.y = obrys.yMin - 0.01;
   axisHelper.position.y = obrys.yMin;
 }
-let points2D = []
 let objects2D = []
 let objectsIn2DScene = []
 function unwrap() {
@@ -1153,22 +1144,6 @@ function unwrap() {
       let APos = poly2D.geometry.vertices[a.index].clone()
       poly2D.localToWorld(APos)
       poly2D.position.add(APos.multiplyScalar(-1))
-
-
-      /* let PlanePoints = [[0, 0]]
-       const bodA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
-       let predchoziA = { x: vertsToPlannarize[0].x, y: vertsToPlannarize[0].y, z: vertsToPlannarize[0].z }
-       let predchoziB = { x: 0, y: 0 }
-       const VBodu = new THREE.Vector3()
-       for (let l = 1; l < vertsToPlannarize.length; l++) {
-         VBodu.set(vertsToPlannarize[l].x - bodA.x, vertsToPlannarize[l].y - bodA.y, vertsToPlannarize[l].z - bodA.z)
-         VBodu.applyQuaternion(quaternion)
-         VBodu.applyQuaternion(druheQuaternion)
-         PlanePoints.push([VBodu.x, VBodu.z])
-         predchoziA = { x: vertsToPlannarize[l].x, y: vertsToPlannarize[l].y, z: vertsToPlannarize[l].z }
-         predchoziB = { x: VBodu.x, y: VBodu.z }
-       }
-       points2D.push(PlanePoints)*/
       objects2D.push(poly2D)
       unplaced.push(poly2D)
     }

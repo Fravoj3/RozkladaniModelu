@@ -119,7 +119,7 @@ function lightMainDirLights(state) {
 }
 
 // ---------------------      2D View setup         ---------------------
-let canvas2D, scene2D, parent2D, parentSize2D, sizes2D
+/*let canvas2D, scene2D, parent2D, parentSize2D, sizes2D
 function setup2DWindow() {
   canvas2D = document.querySelector("canvas.webgl2D");
   parent2D = document.querySelector(".model2D");
@@ -138,7 +138,7 @@ function setup2DWindow() {
   frame.position.set(320 - 104, 180 - 104);
   app.stage.addChild(frame);
 }
-setup2DWindow()
+setup2DWindow()*/
 //--------------------------------------     Set 2D Scene    -----------------------------------------
 /*const canvas2D = document.querySelector("canvas.webgl2D");
 const parent2D = document.querySelector(".model2D");
